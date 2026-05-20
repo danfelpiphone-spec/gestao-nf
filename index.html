@@ -1131,16 +1131,17 @@ let _fbUnsubNFs     = null;
 let _fbUnsubNotifs  = null;
 let _fbUnsubFuncs   = null;
 let _fbUser         = null;
+let _importing      = false;
 
 function iniciarApp(user){
   _fbUser = user;
 
   // Sync NFs
   if(_fbUnsubNFs) _fbUnsubNFs();
-  _fbUnsubNFs = db.ref('nfs').on('value', snap => {
+  db.ref('nfs').on('value', snap => {
+    if(_importing) return; // skip during import
     const data = snap.val();
     nfs = data ? Object.values(data) : [];
-    // Restore msgs array (stored separately)
     nfs.forEach(n => { if(!n.msgs) n.msgs = []; });
     refresh();
   });
@@ -2442,8 +2443,8 @@ function importFile(file){
       const sample = dataRows[0]||[];
 
 
-      // Pause Firebase listener during import
-      if(_fbUnsubNFs){ db.ref('nfs').off('value'); }
+      // Block Firebase listener during import
+      _importing = true;
 
       // Remove seed NFs before importing real data
       nfs = nfs.filter(n=>!n.isSeed);
@@ -2563,17 +2564,10 @@ function importFile(file){
       salvarSnapshot({arquivo:file.name,qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada});
       const arqData = {id:Date.now(),filename:file.name,dataNome:parseDateFromFilename(file.name),importadoEm:new Date().toISOString(),importadoFmt:new Date().toLocaleString('pt-BR'),qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada,superseded:false};
       salvarArquivoFirebase(arqData);
-      // Save to Firebase then re-enable listener
       salvarTodasNFsFirebase();
       refresh();
-      // Re-attach Firebase listener after short delay
-      setTimeout(()=>{
-        _fbUnsubNFs = db.ref('nfs').on('value', snap => {
-          const data = snap.val();
-          if(data) nfs = Object.values(data).map(n=>({...n, msgs:n.msgs||[]}));
-          refresh();
-        });
-      }, 3000);
+      // Release import lock after all batches are likely done
+      setTimeout(() => { _importing = false; }, 15000);
 
 
       showToast(`Importação: ${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} inalterada(s) · ${qtdIgnorada} ignorada(s).`,'success');
