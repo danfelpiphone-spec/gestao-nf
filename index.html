@@ -1182,24 +1182,24 @@ function salvarNFFirebase(nf){
 }
 
 function salvarTodasNFsFirebase(){
-  // Save in batches of 200 to avoid browser freeze
-  const BATCH = 200;
-  const entries = nfs.map(n => {
-    const key = n.num + '_' + (n.forn||'').replace(/[.#$[\]#.]/g,'_').substring(0,30);
-    return [key, n];
-  });
-  let i = 0;
-  function nextBatch(){
-    if(i >= entries.length) return;
-    const batch = entries.slice(i, i+BATCH);
-    const updates = {};
-    batch.forEach(([k,v]) => updates['nfs/'+k] = v);
-    db.ref().update(updates).then(() => {
-      i += BATCH;
-      setTimeout(nextBatch, 50);
+  return new Promise(resolve => {
+    const BATCH = 100;
+    const entries = nfs.map(n => {
+      const key = (n.num+'').replace(/[.#$[\]]/g,'_') + '_' + (n.forn||'').replace(/[.#$[\]]/g,'_').substring(0,20);
+      return [key, n];
     });
-  }
-  nextBatch();
+    let i = 0;
+    function nextBatch(){
+      if(i >= entries.length){ resolve(); return; }
+      const batch = entries.slice(i, i+BATCH);
+      const updates = {};
+      batch.forEach(([k,v]) => { updates['nfs/'+k] = v; });
+      db.ref().update(updates)
+        .then(() => { i += BATCH; setTimeout(nextBatch, 100); })
+        .catch(() => { i += BATCH; setTimeout(nextBatch, 200); }); // skip failed batch
+    }
+    nextBatch();
+  });
 }
 
 function salvarNotifFirebase(notif){
@@ -2564,10 +2564,13 @@ function importFile(file){
       salvarSnapshot({arquivo:file.name,qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada});
       const arqData = {id:Date.now(),filename:file.name,dataNome:parseDateFromFilename(file.name),importadoEm:new Date().toISOString(),importadoFmt:new Date().toLocaleString('pt-BR'),qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada,superseded:false};
       salvarArquivoFirebase(arqData);
-      salvarTodasNFsFirebase();
       refresh();
-      // Release import lock after all batches are likely done
-      setTimeout(() => { _importing = false; }, 15000);
+      showToast('Salvando no Firebase... aguarde.','');
+      salvarTodasNFsFirebase().then(() => {
+        _importing = false;
+        showToast('Dados salvos no Firebase!','success');
+        refresh();
+      });
 
 
       showToast(`Importação: ${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} inalterada(s) · ${qtdIgnorada} ignorada(s).`,'success');
