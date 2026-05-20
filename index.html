@@ -483,7 +483,10 @@
         <input type="checkbox" id="modo-teste" style="width:13px;height:13px">
         Modo Teste — carregar sem filtro (E/F/I)
       </label>
-      <button class="sap-btn" onclick="limparDados()" style="color:var(--red);border-color:var(--red)">🗑 Limpar dados</button>
+      <div style="display:flex;gap:8px">
+        <button class="sap-btn" onclick="limparFirebase()" style="color:var(--red);border-color:var(--red)">🔥 Limpar Firebase</button>
+        <button class="sap-btn" onclick="limparDados()" style="color:var(--red);border-color:var(--red)">🗑 Limpar dados locais</button>
+      </div>
     </div>
 
     <div class="imp-log" id="imp-log" style="display:none">
@@ -2417,6 +2420,23 @@ function detectChanges(existing, incoming){
     if(a !== b) changed.push({campo:CAMPOS_LABELS[k]||k, de:a||'—', para:b||'—'});
   });
   return changed;
+}
+
+function limparFirebase(){
+  showToast('Limpando Firebase...','');
+  Promise.all([
+    db.ref('nfs').remove(),
+    db.ref('meta').remove(),
+    db.ref('arquivos').remove(),
+    db.ref('notificacoes').remove()
+  ]).then(()=>{
+    nfs=[];
+    notifs=[];
+    arquivosFirebase=[];
+    try{localStorage.removeItem(STORAGE_NFS);localStorage.removeItem(STORAGE_MSGS);localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(STORAGE_ARQ);}catch(e){}
+    refresh();
+    showToast('Firebase limpo! Pronto para nova importação.','success');
+  }).catch(e=>showToast('Erro ao limpar: '+e.message,''));
 }
 
 function limparDados(){
