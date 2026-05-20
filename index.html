@@ -1138,11 +1138,30 @@ function iniciarApp(user){
 
   // Sync NFs
   if(_fbUnsubNFs) _fbUnsubNFs();
-  db.ref('nfs').on('value', snap => {
-    if(_importing) return; // skip during import
-    const data = snap.val();
-    nfs = data ? Object.values(data) : [];
-    nfs.forEach(n => { if(!n.msgs) n.msgs = []; });
+  // Listen to import lock in Firebase
+  db.ref('meta/importing').on('value', snap => {
+    const fbImporting = snap.val();
+    if(fbImporting) {
+      showToast('Importação em andamento, aguarde...','');
+    } else if(!_importing) {
+      // Only reload when import is fully done
+      db.ref('nfs').once('value').then(nfSnap => {
+        const data = nfSnap.val();
+        nfs = data ? Object.values(data) : [];
+        nfs.forEach(n => { if(!n.msgs) n.msgs = []; });
+        refresh();
+      });
+    }
+  });
+
+  // Also listen for real-time changes (messages, etapas)
+  db.ref('nfs').on('child_changed', snap => {
+    if(_importing) return;
+    const n = snap.val();
+    if(!n) return;
+    const idx = nfs.findIndex(x => x.num===n.num && x.forn===n.forn);
+    if(idx>=0) nfs[idx] = {...n, msgs:n.msgs||[]};
+    else { n.msgs = n.msgs||[]; nfs.push(n); }
     refresh();
   });
 
@@ -2443,8 +2462,9 @@ function importFile(file){
       const sample = dataRows[0]||[];
 
 
-      // Block Firebase listener during import
+      // Set import lock in Firebase (blocks all users)
       _importing = true;
+      db.ref('meta/importing').set(true);
 
       // Remove seed NFs before importing real data
       nfs = nfs.filter(n=>!n.isSeed);
@@ -2568,7 +2588,9 @@ function importFile(file){
       showToast('Salvando no Firebase... aguarde.','');
       salvarTodasNFsFirebase().then(() => {
         _importing = false;
-        showToast('Dados salvos no Firebase!','success');
+        // Release Firebase lock — all users will reload
+        db.ref('meta/importing').set(false);
+        showToast('Dados salvos! Todos os usuários foram atualizados.','success');
         refresh();
       });
 
