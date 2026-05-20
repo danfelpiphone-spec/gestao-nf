@@ -1181,12 +1181,24 @@ function salvarNFFirebase(nf){
 }
 
 function salvarTodasNFsFirebase(){
-  const obj = {};
-  nfs.forEach(n => {
-    const key = n.num + '_' + (n.forn||'').replace(/[.#$\[\]]/g,'_').substring(0,30);
-    obj[key] = n;
+  // Save in batches of 200 to avoid browser freeze
+  const BATCH = 200;
+  const entries = nfs.map(n => {
+    const key = n.num + '_' + (n.forn||'').replace(/[.#$[\]#.]/g,'_').substring(0,30);
+    return [key, n];
   });
-  db.ref('nfs').set(obj);
+  let i = 0;
+  function nextBatch(){
+    if(i >= entries.length) return;
+    const batch = entries.slice(i, i+BATCH);
+    const updates = {};
+    batch.forEach(([k,v]) => updates['nfs/'+k] = v);
+    db.ref().update(updates).then(() => {
+      i += BATCH;
+      setTimeout(nextBatch, 50);
+    });
+  }
+  nextBatch();
 }
 
 function salvarNotifFirebase(notif){
@@ -2430,6 +2442,9 @@ function importFile(file){
       const sample = dataRows[0]||[];
 
 
+      // Pause Firebase listener during import
+      if(_fbUnsubNFs){ db.ref('nfs').off('value'); }
+
       // Remove seed NFs before importing real data
       nfs = nfs.filter(n=>!n.isSeed);
 
@@ -2548,8 +2563,17 @@ function importFile(file){
       salvarSnapshot({arquivo:file.name,qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada});
       const arqData = {id:Date.now(),filename:file.name,dataNome:parseDateFromFilename(file.name),importadoEm:new Date().toISOString(),importadoFmt:new Date().toLocaleString('pt-BR'),qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada,superseded:false};
       salvarArquivoFirebase(arqData);
+      // Save to Firebase then re-enable listener
       salvarTodasNFsFirebase();
       refresh();
+      // Re-attach Firebase listener after short delay
+      setTimeout(()=>{
+        _fbUnsubNFs = db.ref('nfs').on('value', snap => {
+          const data = snap.val();
+          if(data) nfs = Object.values(data).map(n=>({...n, msgs:n.msgs||[]}));
+          refresh();
+        });
+      }, 3000);
 
 
       showToast(`Importação: ${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} inalterada(s) · ${qtdIgnorada} ignorada(s).`,'success');
