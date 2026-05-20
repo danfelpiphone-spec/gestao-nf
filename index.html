@@ -1138,32 +1138,35 @@ function iniciarApp(user){
 
   // Sync NFs
   if(_fbUnsubNFs) _fbUnsubNFs();
-  // Listen to import lock in Firebase
-  db.ref('meta/importing').on('value', snap => {
-    const fbImporting = snap.val();
-    if(fbImporting) {
-      showToast('Importação em andamento, aguarde...','');
+  // Version-based reload: when nfsVersion changes, all users reload
+  db.ref('meta').on('value', snap => {
+    const meta = snap.val() || {};
+    if(meta.importing) {
+      if(!_importing) showToast('Importação em andamento, aguarde...','');
     } else if(!_importing) {
-      // Only reload when import is fully done
-      db.ref('nfs').once('value').then(nfSnap => {
-        const data = nfSnap.val();
-        nfs = data ? Object.values(data) : [];
-        nfs.forEach(n => { if(!n.msgs) n.msgs = []; });
-        refresh();
-      });
+      carregarNFsDoFirebase();
     }
   });
 
-  // Also listen for real-time changes (messages, etapas)
+  // Real-time: individual NF changes (messages, etapas)
   db.ref('nfs').on('child_changed', snap => {
     if(_importing) return;
     const n = snap.val();
     if(!n) return;
-    const idx = nfs.findIndex(x => x.num===n.num && x.forn===n.forn);
-    if(idx>=0) nfs[idx] = {...n, msgs:n.msgs||[]};
-    else { n.msgs = n.msgs||[]; nfs.push(n); }
-    refresh();
+    n.msgs = n.msgs||[];
+    const idx = nfs.findIndex(x=>x.num===n.num && x.forn===n.forn);
+    if(idx>=0){ nfs[idx]=n; refresh(); }
   });
+
+  // Arquivos sync
+  db.ref('arquivos').on('value', snap => {
+    const data = snap.val();
+    arquivosFirebase = data ? Object.values(data).sort((a,b)=>b.importadoEm.localeCompare(a.importadoEm)) : [];
+    if(document.getElementById('view-arquivos')?.classList.contains('active')) renderArquivos();
+  });
+
+  // Initial load
+  carregarNFsDoFirebase();
 
   // Sync Notificações
   if(_fbUnsubNotifs) _fbUnsubNotifs();
@@ -1195,6 +1198,17 @@ function iniciarApp(user){
 // ══════════════════════════════════════════════════════
 // SAVE TO FIREBASE
 // ══════════════════════════════════════════════════════
+
+function carregarNFsDoFirebase(){
+  showToast('Carregando dados...','');
+  db.ref('nfs').once('value').then(snap => {
+    const data = snap.val();
+    nfs = data ? Object.values(data).map(n=>({...n,msgs:n.msgs||[]})) : [];
+    refresh();
+    showToast('Dados carregados: '+nfs.length+' NFs','success');
+  });
+}
+
 function salvarNFFirebase(nf){
   const key = nf.num + '_' + (nf.forn||'').replace(/[.#$\[\]]/g,'_').substring(0,30);
   db.ref('nfs/' + key).set(nf);
@@ -1899,7 +1913,7 @@ function salvarArquivos(lista){
 }
 
 function registrarArquivo(filename, resumo){
-  const lista = carregarArquivos();
+  const lista = arquivosFirebase.length ? arquivosFirebase : carregarArquivos();
   const dataNome = parseDateFromFilename(filename);
   const agora = new Date().toISOString();
   const id = Date.now();
@@ -1927,7 +1941,7 @@ function registrarArquivo(filename, resumo){
 }
 
 function renderArquivos(){
-  const lista = carregarArquivos();
+  const lista = arquivosFirebase.length ? arquivosFirebase : carregarArquivos();
   const el    = document.getElementById('arq-list');
   const cnt   = document.getElementById('arq-count');
   if(cnt) cnt.textContent = lista.length + ' arquivo' + (lista.length!==1?'s':'');
@@ -1969,13 +1983,13 @@ function renderArquivos(){
       </div>
       <span class="arq-meta">Importado: ${a.importadoFmt}</span>
       <span class="arq-status-tag ${isAtivo?'ativo':'sup'}">${isAtivo?'✓ ATIVO':'SUBSTITUÍDO'}</span>
-      <button class="sap-btn" style="color:var(--red);border-color:var(--red);flex-shrink:0" onclick="excluirArquivo(${a.id})">🗑 Excluir</button>
+      ${(currentUser&&currentUser.admin)||(_fbUser&&_fbUser.email==='danfelpiphone@gmail.com')?'<button class="sap-btn" style="color:var(--red);border-color:var(--red);flex-shrink:0" onclick="excluirArquivo('+a.id+')">🗑 Excluir</button>':''}
     </div>`;
   }).join('');
 }
 
 function excluirArquivo(id){
-  const lista = carregarArquivos();
+  const lista = arquivosFirebase.length ? arquivosFirebase : carregarArquivos();
   const arq   = lista.find(a=>a.id===id);
   if(!arq) return;
 
@@ -1991,6 +2005,7 @@ function excluirArquivo(id){
   }
 
   salvarArquivos(novaLista);
+  db.ref('arquivos/'+id).remove();
 
   // If deleting the active (most recent) file, warn user
   if(!arq.superseded){
@@ -2464,7 +2479,7 @@ function importFile(file){
 
       // Set import lock in Firebase (blocks all users)
       _importing = true;
-      db.ref('meta/importing').set(true);
+      db.ref('meta').update({importing: true});
 
       // Remove seed NFs before importing real data
       nfs = nfs.filter(n=>!n.isSeed);
@@ -2582,14 +2597,17 @@ function importFile(file){
         desc:`${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} sem alteração · ${qtdIgnorada} ignorada(s) — ${file.name}`,
         nf:'',hora:'Agora',lida:false,area:null,destinatario:null});
       salvarSnapshot({arquivo:file.name,qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada});
-      const arqData = {id:Date.now(),filename:file.name,dataNome:parseDateFromFilename(file.name),importadoEm:new Date().toISOString(),importadoFmt:new Date().toLocaleString('pt-BR'),qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada,superseded:false};
-      salvarArquivoFirebase(arqData);
+      const arqId = Date.now();
+      const arqData = {id:arqId,filename:file.name,dataNome:parseDateFromFilename(file.name),importadoEm:new Date().toISOString(),importadoFmt:new Date().toLocaleString('pt-BR'),qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada,superseded:false,importadoPor:_fbUser?_fbUser.email:''};
+      db.ref('arquivos/'+arqId).set(arqData);
       refresh();
       showToast('Salvando no Firebase... aguarde.','');
-      salvarTodasNFsFirebase().then(() => {
+      // Delete old data first to avoid duplicates, then save fresh
+      db.ref('nfs').remove().then(() => {
+        return salvarTodasNFsFirebase();
+      }).then(() => {
         _importing = false;
-        // Release Firebase lock — all users will reload
-        db.ref('meta/importing').set(false);
+        db.ref('meta').update({importing: false, nfsVersion: Date.now()});
         showToast('Dados salvos! Todos os usuários foram atualizados.','success');
         refresh();
       });
