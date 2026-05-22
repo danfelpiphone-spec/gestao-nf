@@ -304,6 +304,15 @@
   .arq-status-tag.sup   { background:#f0f0f0; color:var(--muted); border:1px solid var(--border); }
   .arq-empty { text-align:center; padding:40px; color:var(--muted); font-size:12px; }
 
+  /* EDIT USER MODAL */
+  .edit-modal-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:999999; align-items:center; justify-content:center; }
+  .edit-modal-ov.open { display:flex; }
+  .edit-modal { background:var(--white); border:1px solid var(--border-dark); border-radius:var(--r); width:420px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,.28); }
+  .edit-modal-tbar { background:linear-gradient(to bottom,#f2f2f2,#e4e4e4); border-bottom:2px solid var(--sap-blue); padding:9px 14px; display:flex; align-items:center; justify-content:space-between; }
+  .edit-modal-tbar h3 { font-size:14px; font-weight:700; color:var(--sap-blue-dark); }
+  .edit-modal-body { padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .edit-modal-actions { display:flex; gap:8px; justify-content:flex-end; padding:0 16px 16px; }
+
   /* RELATÓRIOS */
   .rel-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
   .rel-card { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
@@ -316,6 +325,11 @@
   .rel-bar-track { flex:1; background:#f0f0f0; border-radius:3px; height:18px; position:relative; border:1px solid var(--border); }
   .rel-bar-fill { height:100%; border-radius:3px; display:flex; align-items:center; padding-left:6px; font-size:11px; font-weight:700; color:#fff; white-space:nowrap; transition:width .4s ease; }
   .rel-bar-val { margin-left:6px; color:var(--muted); font-size:11px; }
+  .rel-delta { font-size:11px; font-weight:700; margin-left:6px; white-space:nowrap; }
+  .rel-delta.melhor { color:var(--green); }
+  .rel-delta.pior   { color:var(--red); }
+  .rel-delta.igual  { color:var(--muted); }
+  .rel-compare-note { font-size:11px; color:var(--muted); padding:6px 0 2px; font-style:italic; }
   .snap-list { max-height:260px; overflow-y:auto; }
   .snap-row { display:flex; align-items:center; gap:10px; padding:7px 14px; border-bottom:1px solid var(--border); font-size:12px; }
   .snap-row:last-child { border-bottom:none; }
@@ -581,6 +595,12 @@
       <select class="sap-sel" id="f-criador" onchange="renderNFTable()" style="max-width:180px">
         <option value="">Todos os Criadores</option>
       </select>
+      <select class="sap-sel" id="f-req" onchange="renderNFTable()" style="max-width:180px">
+        <option value="">Todos os Requisitantes</option>
+      </select>
+      <select class="sap-sel" id="f-dep" onchange="renderNFTable()" style="max-width:160px">
+        <option value="">Todos os Depósitos</option>
+      </select>
       <div class="tbar-sep"></div>
       <span style="font-size:11px;color:var(--muted)">Ordenar:</span>
       <button class="sort-btn" id="nf-sort-nome-az"  onclick="setNFSort('nome','az')">A→Z</button>
@@ -650,6 +670,7 @@
             <th>Fornecedor</th>
             <th>Pedido de Compra</th>
             <th>Valor (BRL)</th>
+            <th>Data Pagamento</th>
             <th>Data Emissão</th>
             <th>Ações</th>
           </tr>
@@ -693,10 +714,12 @@
       <div class="rel-card">
         <div class="rel-card-hdr">📍 NFs Pendentes por Etapa — Hoje</div>
         <div class="rel-card-body">
+          <div id="rel-etapa-note" class="rel-compare-note"></div>
           <div class="rel-bar-wrap" id="rel-etapa-bars">
             <div class="rel-empty">Sem dados de importação ainda.</div>
           </div>
-
+        </div>
+      </div>
 
       <!-- R2: Média diária por etapa -->
       <div class="rel-card">
@@ -772,6 +795,10 @@
             </div>
           </div>
           <div class="cfg-field">
+            <label>E-mail (login no sistema)</label>
+            <input class="sap-input" id="cfg-email" type="email" placeholder="usuario@empresa.com.br" style="width:100%" autocomplete="off">
+          </div>
+          <div class="cfg-field">
             <label>Usuário SAP</label>
             <input class="sap-input" id="cfg-sap" placeholder="Ex: JSILVA, MPEREIRA..." style="width:100%" autocomplete="off">
           </div>
@@ -810,6 +837,53 @@
     </div>
   </div>
 
+</div>
+
+
+<!-- EDIT USER MODAL -->
+<div class="edit-modal-ov" id="edit-user-ov" onclick="closeEditUser(event)">
+  <div class="edit-modal" onclick="event.stopPropagation()">
+    <div class="edit-modal-tbar">
+      <h3>✏️ Editar Usuário</h3>
+      <button class="modal-close" onclick="closeEditUser()">✕</button>
+    </div>
+    <div class="edit-modal-body">
+      <input type="hidden" id="edit-user-id">
+      <div class="cfg-field">
+        <label>Nome Completo</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <input class="sap-input" id="edit-nome" placeholder="Nome" style="width:100%">
+          <input class="sap-input" id="edit-sobrenome" placeholder="Sobrenome" style="width:100%">
+        </div>
+      </div>
+      <div class="cfg-field">
+        <label>E-mail (login)</label>
+        <input class="sap-input" id="edit-email" type="email" style="width:100%">
+      </div>
+      <div class="cfg-field">
+        <label>Usuário SAP</label>
+        <input class="sap-input" id="edit-sap" style="width:100%">
+      </div>
+      <div class="cfg-field">
+        <label>Área / Departamento</label>
+        <select class="sap-sel" id="edit-area" style="width:100%">
+          <option value="">Selecione...</option>
+          <option>Suprimentos</option><option>MIGO</option>
+          <option>MIRO</option><option>CAP</option>
+        </select>
+      </div>
+      <div class="cfg-field" style="flex-direction:row;align-items:center;gap:8px">
+        <input type="checkbox" id="edit-admin" style="width:14px;height:14px;cursor:pointer">
+        <label for="edit-admin" style="text-transform:none;font-size:12px;color:var(--text);cursor:pointer;letter-spacing:0">
+          Admin da Área
+        </label>
+      </div>
+    </div>
+    <div class="edit-modal-actions">
+      <button class="sap-btn" onclick="closeEditUser()">Cancelar</button>
+      <button class="sap-btn primary" onclick="salvarEdicaoUsuario()">💾 Salvar</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL NF -->
@@ -1135,6 +1209,7 @@ let _fbUnsubNotifs  = null;
 let _fbUnsubFuncs   = null;
 let _fbUser         = null;
 let _importing      = false;
+const OWNER_EMAIL   = 'danfelpiphone@gmail.com';
 
 function iniciarApp(user){
   _fbUser = user;
@@ -1166,7 +1241,7 @@ function iniciarApp(user){
   db.ref('arquivos').on('value', snap => {
     const data = snap.val();
     arquivosFirebase = data ? Object.values(data).sort((a,b)=>b.importadoEm.localeCompare(a.importadoEm)) : [];
-    if(document.getElementById('view-arquivos')?.classList.contains('active')) renderArquivos();
+    if(document.getElementById('view-arquivos')?.classList.contains('active')){ renderArquivos(); aplicarPermissoes(); }
   });
 
   // Initial load
@@ -1202,6 +1277,30 @@ function iniciarApp(user){
 // ══════════════════════════════════════════════════════
 // SAVE TO FIREBASE
 // ══════════════════════════════════════════════════════
+
+
+function aplicarPermissoes(){
+  const owner = isOwner();
+  // Import Excel button
+  const btnImport = document.querySelector('.sap-btn.primary[onclick*="excel-input"]');
+  if(btnImport) btnImport.style.display = owner ? '' : 'none';
+  // Drop zone — disable for non-owners but keep visible
+  const dz = document.getElementById('drop-zone');
+  if(dz){ dz.style.pointerEvents = owner ? '' : 'none'; dz.style.opacity = owner ? '' : '0.5'; dz.title = owner ? '' : 'Apenas o administrador pode importar'; }
+  // Limpar Firebase button
+  const btnFb = document.querySelector('[onclick="limparFirebase()"]');
+  if(btnFb) btnFb.style.display = owner ? '' : 'none';
+  // Limpar dados locais button
+  const btnLocal = document.querySelector('[onclick="limparDados()"]');
+  if(btnLocal) btnLocal.style.display = owner ? '' : 'none';
+  // Modo Teste checkbox
+  const modoTeste = document.getElementById('modo-teste');
+  if(modoTeste) modoTeste.parentElement.style.display = owner ? '' : 'none';
+}
+
+function isOwner(){
+  return _fbUser && _fbUser.email.toLowerCase() === OWNER_EMAIL.toLowerCase();
+}
 
 function carregarNFsDoFirebase(){
   showToast('Carregando dados...','');
@@ -1506,7 +1605,9 @@ function renderNFTable(){
   const s  = document.getElementById('search-nf').value.toLowerCase();
   const sf = document.getElementById('f-status').value;
   const af = document.getElementById('f-area').value;
-  const cf = document.getElementById('f-criador').value;
+  const cf  = document.getElementById('f-criador').value;
+  const rf  = document.getElementById('f-req')?.value || '';
+  const df  = document.getElementById('f-dep')?.value || '';
 
   const pn      = getPeriod('nfs');
   const vencDe  = (document.getElementById('nfs-venc-de')?.value)  || null;
@@ -1574,9 +1675,9 @@ function openModal(id){
     <div class="dcell"><label>Criador do Pedido</label><div class="dval">${n.criador||'—'}</div></div>
     <div class="dcell"><label>Status MIGO (col N)</label><div class="dval">${n.statusMigo||'—'}</div></div>
     <div class="dcell"><label>MIRO / Doc (col O)</label><div class="dval mono">${n.miro||'—'}</div></div>
-    <div class="dcell"><label>Doc Pagamento</label><div class="dval mono">${n.docPgto||'—'}</div></div>
+    <div class="dcell"><label>Requisitante</label><div class="dval">${n.requisitante||'—'}</div></div>
     <div class="dcell"><label>Forma de Pagamento</label><div class="dval">${n.formaPgto||'—'}</div></div>
-    <div class="dcell"><label>Condições Pgto.</label><div class="dval">${n.condPgto||'—'}</div></div>
+    <div class="dcell"><label>Área (Departamento)</label><div class="dval">${currentUser?currentUser.area:'—'}</div></div>
     ${n.adiant?`<div class="dcell" style="border-top:2px solid var(--yellow)"><label>⚠ Adiantamento ECC</label><div class="dval" style="color:var(--yellow);font-weight:700">${n.adiant}</div></div>`:''}
     ${n.posDup?`<div class="dcell" style="border-top:2px solid var(--red)"><label>⚠ Possível Duplicidade</label><div class="dval" style="color:var(--red);font-weight:700">${n.posDup}</div></div>`:''}
     ${n.vlrRep?`<div class="dcell"><label>Valor NF x CNPJ Repetido</label><div class="dval mono">${n.vlrRep}</div></div>`:''}
@@ -1604,8 +1705,14 @@ function closeModal(e){if(e&&e.target!==document.getElementById('modal-ov'))retu
 
 function enviarMsg(){
   if(!currentNF)return;
-  const area=document.getElementById('msg-area').value;
-  const func=document.getElementById('msg-func').value;
+  // Sender = logged user's area
+  const area     = currentUser ? currentUser.area : (document.getElementById('msg-area-dest')?.value||'Sistema');
+  const areaDest = document.getElementById('msg-area-dest')?.value || '';
+  const funcSel  = document.getElementById('msg-func');
+  const func     = funcSel?.value || '';
+  // Get destination employee email for notification
+  const funcOpt  = funcSel?.querySelector(`option[value="${func}"]`);
+  const funcEmail= funcOpt?.getAttribute('data-email') || '';
   const txt=document.getElementById('msg-ta').value.trim();
   if(!txt){showToast('Digite uma mensagem antes de enviar.');return;}
   const now=new Date();
@@ -1613,10 +1720,15 @@ function enviarMsg(){
   currentNF.msgs.push({area,func,txt,hora});
   salvarNFFirebase(currentNF);
   const destFunc = document.getElementById('msg-func').value;
-  const novaNotif = {tipo:'info',ico:'💬',title:`Nova mensagem em NF #${currentNF.num}`,
-    desc:`${area}${destFunc?' → '+destFunc:''}: ${txt.substring(0,80)}${txt.length>80?'...':''}`,
-    nf:currentNF.num, hora:'Agora', lida:false,
-    area:area, destinatario:destFunc||null};
+  const novaNotif = {tipo:'info',ico:'💬',
+    title:`Nova mensagem em NF #${currentNF.num}`,
+    desc:`${area}${areaDest?' → '+areaDest:''}${func?' ('+func+')':''}: ${txt.substring(0,80)}${txt.length>80?'...':''}`,
+    nf:currentNF.num, hora:hora, lida:false,
+    area:areaDest||area,
+    destinatario: func||null,
+    destinatarioEmail: funcEmail||null,
+    remetente: currentUser?currentUser.nome:'',
+    remetenteArea: area};
   notifs.unshift(novaNotif);
   salvarNotifFirebase(novaNotif);
   document.getElementById('msg-ta').value='';
@@ -1625,27 +1737,61 @@ function enviarMsg(){
 }
 
 function gerarEmail(){
-  if(!currentNF)return;
-  const area=document.getElementById('msg-area').value;
-  const txt=document.getElementById('msg-ta').value.trim();
-  const para=currentNF.areas.filter(a=>a!==area).join(', ')||currentNF.areas.join(', ');
-  document.getElementById('e-subj').textContent=`[GestãoNF] NF #${currentNF.num} — ${currentNF.status} — Ação Necessária`;
-  document.getElementById('e-para').textContent=para;
-  document.getElementById('e-body').textContent=`Prezados,\n\nEste e-mail é gerado automaticamente pelo sistema GestãoNF.\n\n──────────────────────────────────────\n NOTA FISCAL : #${currentNF.num}\n STATUS      : ${currentNF.status}\n FORNECEDOR  : ${currentNF.forn}\n VALOR       : ${fval(currentNF.val)}\n EMISSÃO     : ${fdate(currentNF.emissao)}\n VENCIMENTO  : ${fdate(currentNF.venc)}\n PED. COMPRA : ${currentNF.pc||'—'}\n ÁREAS       : ${currentNF.areas.join(' | ')}\n──────────────────────────────────────\n${txt?`\nMENSAGEM DE ${area}:\n${txt}\n`:''}\nSolicitamos verificação e as devidas tratativas para regularização desta NF.\n\nAtenciosamente,\n${area} — Sistema GestãoNF`;
-  document.getElementById('email-ov').classList.add('open');
+  if(!currentNF) return;
+  // Use logged user's area as sender; destination area from select
+  const area     = currentUser ? currentUser.area : (document.getElementById('msg-area-dest')?.value || 'Sistema');
+  const areaDest = document.getElementById('msg-area-dest')?.value || '';
+  const func     = document.getElementById('msg-func')?.value || '';
+  const txt      = document.getElementById('msg-ta')?.value.trim() || '';
+  const para     = areaDest || (currentNF.areas||[]).join(', ');
+
+  document.getElementById('e-subj').textContent =
+    `[GestãoNF] NF #${currentNF.num} — ${currentNF.status} — Ação Necessária`;
+  document.getElementById('e-para').textContent =
+    `${para}${func?' — Att.: '+func:''}`;
+  const msgExtra = txt ? ('\nMENSAGEM DE ' + area + ':\n' + txt + '\n') : '';
+  const corpo = [
+    'Prezados,',
+    '',
+    'Este e-mail e gerado automaticamente pelo sistema GestaoNF.',
+    '',
+    '--------------------------------------',
+    ' NOTA FISCAL : #' + currentNF.num,
+    ' STATUS      : ' + currentNF.status,
+    ' FORNECEDOR  : ' + currentNF.forn,
+    ' VALOR       : ' + fval(currentNF.val),
+    ' EMISSAO     : ' + fdate(currentNF.emissao),
+    ' PED. COMPRA : ' + (currentNF.pc||'---'),
+    ' ÁREAS       : ' + (currentNF.areas||[]).join(' | '),
+    '──────────────────────────────────────',
+    msgExtra,
+    'Solicitamos verificacao e as devidas tratativas para regularizacao desta NF.',
+    '',
+    'Atenciosamente,',
+    area + ' - Sistema GestaoNF'
+  ].join('\n');
+  document.getElementById('e-body').textContent = corpo;
+
+  // Move email modal to body top so it's always visible
+  const eo = document.getElementById('email-ov');
+  document.body.appendChild(eo);
+  eo.classList.add('open');
 }
 function closeEmail(e){if(e&&e.target!==document.getElementById('email-ov'))return;document.getElementById('email-ov').classList.remove('open');}
 function copiarEmail(){navigator.clipboard.writeText(document.getElementById('e-body').textContent).then(()=>showToast('E-mail copiado!','success'));}
 
 function notifsDoUsuario(){
-  if(!currentUser) return notifs;
+  if(!_fbUser) return [];
+  const email = _fbUser.email.toLowerCase();
   return notifs.filter(n=>{
-    // Notificações do sistema (importação, etc) — todos veem
-    if(!n.area && !n.destinatario) return true;
-    // Admin da área recebe todas da sua área
-    if(currentUser.admin && n.area === currentUser.area) return true;
-    // Usuário recebe as direcionadas a ele pelo nome
-    if(n.destinatario && n.destinatario === currentUser.nome) return true;
+    // Sistema (importação, etc) sem área — todos veem
+    if(!n.area && !n.destinatario && !n.destinatarioEmail) return true;
+    // Direcionada a funcionário específico por e-mail → só esse usuário
+    if(n.destinatarioEmail && n.destinatarioEmail.toLowerCase()===email) return true;
+    // Direcionada por nome → verifica se é este usuário
+    if(n.destinatario && currentUser && n.destinatario===currentUser.nome) return true;
+    // Sem destinatário específico mas com área → todos os funcionários daquela área veem
+    if(n.area && !n.destinatarioEmail && !n.destinatario && currentUser && currentUser.area===n.area) return true;
     return false;
   });
 }
@@ -1699,6 +1845,7 @@ function renderHistorico(){
     <td>${n.forn}</td>
     <td>${n.pc||'—'}</td>
     <td>${fval(n.val)}</td>
+    <td>${fdate(n.venc)||'—'}</td>
     <td>${fdate(n.emissao)}</td>
     <td><button class="sap-btn" data-open="${n.id}">📝 Detalhar</button></td>
   </tr>`).join('');
@@ -1780,26 +1927,91 @@ function renderRelatorios(){
 }
 
 function renderRelEtapas(){
-  const el = document.getElementById('rel-etapa-bars');
-  const pr2 = getPeriod('rel');
+  const el   = document.getElementById('rel-etapa-bars');
+  const note = document.getElementById('rel-etapa-note');
+  const pr2  = getPeriod('rel');
   const pendentes = nfs.filter(n=>n.status!=='Pago' && inPeriod(n.emissao, pr2));
   if(!pendentes.length){ el.innerHTML='<div class="rel-empty">Sem NFs pendentes.</div>'; return; }
+
+  // Hoje
   const total = pendentes.length;
-  const contagem = {};
-  AREAS.forEach(a=>contagem[a]=0);
-  pendentes.forEach(n=>{ const e=etapaAtual(n); if(e) contagem[e]=(contagem[e]||0)+1; });
-  el.innerHTML = AREAS.map(a=>{
-    const v = contagem[a]||0;
-    const pct = total>0 ? Math.round(v/total*100) : 0;
-    const cor = ETAPA_COLORS[a]||'#888';
-    return `<div class="rel-bar-row">
-      <span class="rel-bar-label" title="${a}">${a}</span>
-      <div class="rel-bar-track">
-        <div class="rel-bar-fill" style="width:${pct}%;background:${cor}">${pct>8?v+' NF':''}</div>
-      </div>
-      <span class="rel-bar-val">${v} NF${v!==1?'s':''}</span>
-    </div>`;
-  }).join('');
+  const hoje = {};
+  AREAS.forEach(a=>hoje[a]=0);
+  pendentes.forEach(n=>{ const e=etapaAtual(n); if(e) hoje[e]=(hoje[e]||0)+1; });
+
+  // Buscar o último snapshot disponível (não necessariamente ontem)
+  el.innerHTML = '<div class="rel-empty" style="font-size:11px">Carregando comparativo...</div>';
+
+  const hojeISO = new Date().toISOString().split('T')[0];
+  carregarSnapshotsFirebase().then(snaps => {
+    // Pega o snapshot mais recente que NÃO seja de hoje
+    const snapOntem = snaps.find(s => s.data < hojeISO) || null;
+    return snapOntem;
+  }).then(snapOntem => {
+    const ontem = {};
+    AREAS.forEach(a => ontem[a] = 0);
+    if(snapOntem && snapOntem.resumo){
+      AREAS.forEach(a => ontem[a] = snapOntem.resumo[a]||0);
+      if(note) note.textContent = 'Comparando com ' + (snapOntem.dataFmt||ontemDate);
+    } else {
+      if(note) note.textContent = 'Sem snapshot de ontem para comparar.';
+    }
+
+    const maxV = Math.max(...AREAS.map(a=>hoje[a]), 1);
+
+    el.innerHTML = AREAS.map(a=>{
+      const v    = hoje[a]||0;
+      const ant  = ontem[a]||0;
+      const pct  = Math.round(v/maxV*100);
+      const pctTotal = total>0 ? Math.round(v/total*100) : 0;
+      const cor  = ETAPA_COLORS[a]||'#888';
+
+      // Delta vs ontem — menos NFs = melhor (etapa avançou)
+      let deltaHTML = '';
+      if(snapOntem && snapOntem.resumo){
+        const diff = v - ant;
+        if(diff < 0){
+          deltaHTML = '<span class="rel-delta melhor">▼ '+Math.abs(diff)+'</span>';
+        } else if(diff > 0){
+          deltaHTML = '<span class="rel-delta pior">▲ '+diff+'</span>';
+        } else {
+          deltaHTML = '<span class="rel-delta igual">= igual</span>';
+        }
+        // % change
+        if(ant > 0){
+          const pctDiff = Math.round(Math.abs(diff)/ant*100);
+          deltaHTML += '<span class="rel-delta '+(diff<0?'melhor':diff>0?'pior':'igual')+'" style="font-weight:400;margin-left:2px">('+pctDiff+'%)</span>';
+        }
+      }
+
+      return '<div class="rel-bar-row">' +
+        '<span class="rel-bar-label" title="'+a+'">'+a+'</span>' +
+        '<div class="rel-bar-track">' +
+          '<div class="rel-bar-fill" style="width:'+pct+'%;background:'+cor+'">' +
+            (pct>10 ? v+' NF' : '') +
+          '</div>' +
+        '</div>' +
+        '<span class="rel-bar-val">'+v+' ('+pctTotal+'%)</span>' +
+        deltaHTML +
+      '</div>';
+    }).join('');
+  }).catch(() => {
+    // Firebase not available — show current data without comparison
+    if(note) note.textContent = 'Sem conexão para comparar com ontem.';
+    const maxV = Math.max(...AREAS.map(a=>hoje[a]), 1);
+    el.innerHTML = AREAS.map(a=>{
+      const v = hoje[a]||0;
+      const pct = Math.round(v/maxV*100);
+      const pctTotal = total>0 ? Math.round(v/total*100) : 0;
+      const cor = ETAPA_COLORS[a]||'#888';
+      return '<div class="rel-bar-row">' +
+        '<span class="rel-bar-label">'+a+'</span>' +
+        '<div class="rel-bar-track"><div class="rel-bar-fill" style="width:'+pct+'%;background:'+cor+'">'+
+        (pct>10?v+' NF':'')+'</div></div>' +
+        '<span class="rel-bar-val">'+v+' ('+pctTotal+'%)</span>' +
+      '</div>';
+    }).join('');
+  });
 }
 
 function renderRelMedia(){
@@ -2001,12 +2213,13 @@ function renderArquivos(){
       </div>
       <span class="arq-meta">Importado: ${a.importadoFmt}</span>
       <span class="arq-status-tag ${isAtivo?'ativo':'sup'}">${isAtivo?'✓ ATIVO':'SUBSTITUÍDO'}</span>
-      ${(currentUser&&currentUser.admin)||(_fbUser&&_fbUser.email==='danfelpiphone@gmail.com')?'<button class="sap-btn" style="color:var(--red);border-color:var(--red);flex-shrink:0" onclick="excluirArquivo('+a.id+')">🗑 Excluir</button>':''}
+      ${isOwner()?'<button class="sap-btn" style="color:var(--red);border-color:var(--red);flex-shrink:0" onclick="excluirArquivo('+a.id+')">🗑 Excluir</button>':''}
     </div>`;
   }).join('');
 }
 
 function excluirArquivo(id){
+  if(!isOwner()){ showToast('Apenas o administrador pode excluir arquivos.',''); return; }
   const lista = arquivosFirebase.length ? arquivosFirebase : carregarArquivos();
   const arq   = lista.find(a=>a.id===id);
   if(!arq) return;
@@ -2100,14 +2313,23 @@ function carregarSnapshotDia(data){
 
 // ── USUÁRIO ATUAL ──
 function popularUserSwitcher(){
-  // Com Firebase, currentUser é determinado pelo e-mail logado
   if(!_fbUser) return;
   const email = _fbUser.email.toLowerCase();
-  currentUser = funcionarios.find(f=>(f.usuarioSAP||'').toLowerCase()===email.split('@')[0] || f.email===email) || null;
+  // Match by email field first, then by SAP user prefix
+  currentUser = funcionarios.find(f =>
+    (f.email||'').toLowerCase() === email ||
+    (f.usuarioSAP||'').toLowerCase() === email.split('@')[0]
+  ) || null;
   const badge = document.getElementById('admin-badge');
-  if(currentUser && currentUser.admin){
-    badge.style.display='';
-    badge.textContent = 'ADMIN · '+currentUser.area;
+  if(currentUser){
+    if(currentUser.admin){
+      badge.style.display='';
+      badge.textContent = 'ADMIN · '+currentUser.area;
+    } else {
+      badge.style.display='';
+      badge.textContent = currentUser.area;
+      badge.style.background = '#0854a0';
+    }
   } else {
     badge.style.display='none';
   }
@@ -2115,26 +2337,65 @@ function popularUserSwitcher(){
 
 function trocarUsuario(){ popularUserSwitcher(); refresh(); }
 
+
+// ── EDITAR USUÁRIO ──
+function abrirEditarUsuario(id){
+  if(!isOwner()){ showToast('Apenas o administrador pode editar usuários.',''); return; }
+  const f = funcionarios.find(x=>x.id===id);
+  if(!f) return;
+  document.getElementById('edit-user-id').value    = id;
+  document.getElementById('edit-nome').value        = f.nome1||f.nome.split(' ')[0];
+  document.getElementById('edit-sobrenome').value   = f.sobrenome||f.nome.split(' ').slice(1).join(' ');
+  document.getElementById('edit-email').value       = f.email||'';
+  document.getElementById('edit-sap').value         = f.usuarioSAP||'';
+  document.getElementById('edit-area').value        = f.area||'';
+  document.getElementById('edit-admin').checked     = !!f.admin;
+  document.getElementById('edit-user-ov').classList.add('open');
+}
+
+function closeEditUser(e){
+  if(e && e.target !== document.getElementById('edit-user-ov')) return;
+  document.getElementById('edit-user-ov').classList.remove('open');
+}
+
+function salvarEdicaoUsuario(){
+  const id        = parseFloat(document.getElementById('edit-user-id').value);
+  const nome1     = document.getElementById('edit-nome').value.trim();
+  const sobrenome = document.getElementById('edit-sobrenome').value.trim();
+  const email     = document.getElementById('edit-email').value.trim().toLowerCase();
+  const sap       = document.getElementById('edit-sap').value.trim().toUpperCase();
+  const area      = document.getElementById('edit-area').value;
+  const admin     = document.getElementById('edit-admin').checked;
+  if(!nome1||!sobrenome){ showToast('Preencha nome e sobrenome.',''); return; }
+  if(!area){ showToast('Selecione a área.',''); return; }
+  if(!email){ showToast('Informe o e-mail.',''); return; }
+  const nome = nome1 + ' ' + sobrenome;
+  const atualizado = {id, nome, nome1, sobrenome, area, email, usuarioSAP:sap, cargo:'', admin};
+  salvarFuncionarioFirebase(atualizado);
+  closeEditUser();
+  showToast(nome + ' atualizado com sucesso!','success');
+}
+
 // ── CONFIGURAÇÕES ──
 function renderCfgList(){
   const el=document.getElementById('cfg-list');
+  if(!el) return;
   const count=document.getElementById('cfg-count');
   if(!funcionarios.length){el.innerHTML='<div class="func-empty">Nenhum funcionário cadastrado.</div>';count.textContent='0 registros';return;}
   count.textContent=funcionarios.length+' registro'+(funcionarios.length!==1?'s':'');
   // Table header
   const header = `<div class="func-row" style="background:linear-gradient(to bottom,#f2f2f2,#e8e8e8);border-bottom:2px solid var(--border-dark);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">
-    <span style="flex:1">Nome Completo</span>
-    <span style="width:100px">Usuário SAP</span>
+    <span style="flex:1">Nome / E-mail</span>
     <span style="width:110px">Área</span>
     <span style="width:60px">Perfil</span>
-    <span style="width:30px"></span>
+    <span style="width:120px">Ações</span>
   </div>`;
   el.innerHTML = header + funcionarios.map(f=>`
     <div class="func-row">
-      <span style="flex:1;font-weight:700">${f.nome}</span>
-      <span style="width:100px;font-family:'Courier New',monospace;font-size:11px;color:var(--sap-blue)">${f.usuarioSAP||'—'}</span>
+      <span style="flex:1;font-weight:700">${f.nome}<br><span style="font-size:10px;color:var(--muted);font-weight:400">${f.email||'sem e-mail'}</span></span>
       <span style="width:110px"><span class="area-tag">${f.area}</span></span>
       <span style="width:60px">${f.admin?'<span class="func-admin-tag">ADMIN</span>':'<span style="font-size:10px;color:var(--muted)">Usuário</span>'}</span>
+      <button class="sap-btn" onclick="abrirEditarUsuario(${f.id})" style="padding:3px 8px;font-size:11px;margin-right:4px">✏️ Editar</button>
       <button class="func-del" onclick="deletarFuncionario(${f.id})" title="Remover">✕</button>
     </div>`).join('');
 }
@@ -2145,16 +2406,19 @@ function salvarFuncionario(){
   const area        = document.getElementById('cfg-area').value;
   const admin       = document.getElementById('cfg-admin').checked;
   const usuarioSAP  = document.getElementById('cfg-sap').value.trim().toUpperCase();
+  const emailFunc   = document.getElementById('cfg-email').value.trim().toLowerCase();
   if(!nome)     { showToast('Informe o nome do usuário.');return; }
   if(!sobrenome){ showToast('Informe o sobrenome do usuário.');return; }
   if(!area)     { showToast('Selecione a área do usuário.');return; }
+  if(!emailFunc){ showToast('Informe o e-mail do usuário.');return; }
   const nomeCompleto = nome + ' ' + sobrenome;
-  const novoFunc = {id:Date.now(), nome:nomeCompleto, nome1:nome, sobrenome, area, cargo:'', admin, usuarioSAP};
+  const novoFunc = {id:Date.now(), nome:nomeCompleto, nome1:nome, sobrenome, area, cargo:'', admin, usuarioSAP, email:emailFunc};
   salvarFuncionarioFirebase(novoFunc);
   document.getElementById('cfg-nome').value='';
   document.getElementById('cfg-sobrenome').value='';
   document.getElementById('cfg-area').value='';
   document.getElementById('cfg-sap').value='';
+  document.getElementById('cfg-email').value='';
   document.getElementById('cfg-admin').checked=false;
   showToast(`${nomeCompleto} cadastrado em ${area}!`,'success');
 }
@@ -2241,10 +2505,17 @@ function deletarFuncionario(id){
 }
 
 function atualizarFuncionarios(){
-  const area=document.getElementById('msg-area').value;
-  const sel=document.getElementById('msg-func');
-  const lista=funcionarios.filter(f=>f.area===area);
-  sel.innerHTML='<option value="">— Funcionário —</option>'+lista.map(f=>`<option value="${f.nome}">${f.nome}</option>`).join('');
+  // Show logged user's area
+  const display = document.getElementById('msg-area-display');
+  if(display) display.textContent = currentUser ? currentUser.area : '—';
+
+  // Filter employees by destination area
+  const areaDest = (document.getElementById('msg-area-dest')?.value)||'';
+  const sel = document.getElementById('msg-func');
+  if(!sel) return;
+  const lista = areaDest ? funcionarios.filter(f=>f.area===areaDest) : [];
+  sel.innerHTML = '<option value="">— Funcionário —</option>' +
+    lista.map(f=>`<option value="${f.nome}" data-email="${f.email||''}">${f.nome}</option>`).join('');
 }
 
 function abrirNotif(id, el){
@@ -2409,6 +2680,9 @@ const COLMAP = {
   vlrRep:     ['valor nf x cnpj repetido','w'],
   posDup:     ['possivel duplicidade no pagamento','possivel duplicidade','x'],
   dadosAdic:  ['dados adicionais','u'],
+  requisitante:['requisitante','criador pedido compra','y'],
+  requisitanteZ:['porfc','z'],
+  deposito:    ['deposito','depósito','aa'],
 };
 
 // Constrói índice coluna→campo a partir dos headers reais do arquivo
@@ -2475,7 +2749,11 @@ function parseRow(r, i){
   const adiant     = gs('adiant');
   const vlrRep     = gs('vlrRep');
   const posDup     = gs('posDup');
-  const dadosAdic  = gs('dadosAdic');
+  const dadosAdic       = gs('dadosAdic');
+  const _reqY           = gs('requisitante');  // col Y
+  const _reqZ           = gs('requisitanteZ'); // col Z
+  const requisitante    = _reqY.toUpperCase() === 'PORFC' ? _reqZ : _reqY; // se Y=PORFC usar Z
+  const deposito        = gs('deposito');       // col AA
 
   const etapas = determineEtapas(_pcRaw, _pedMigoRaw, miro, statusMigo);
   const areas  = areasFromEtapas(etapas);
@@ -2483,6 +2761,7 @@ function parseRow(r, i){
   return {num,forn,val,status,pagto,statusF,eleg,venc,emissao,pc,
           criador,cfop,pedMigo,migo,statusMigo,miro,docPgto,
           formaPgto,condPgto,diasAtePgto,adiant,vlrRep,posDup,dadosAdic,
+          requisitante,deposito,
           areas,etapas};
 }
 
@@ -2497,7 +2776,8 @@ function detectChanges(existing, incoming){
 }
 
 function limparFirebase(){
-  showToast('Limpando Firebase...','');
+  if(!isOwner()){ showToast('Apenas o administrador pode limpar o Firebase.',''); return; }
+  showToast('Limpando Firebase...','')
   Promise.all([
     db.ref('nfs').remove(),
     db.ref('meta').remove(),
@@ -2514,6 +2794,7 @@ function limparFirebase(){
 }
 
 function limparDados(){
+  if(!isOwner()){ showToast('Apenas o administrador pode limpar os dados.',''); return; }
   nfs = [];
   try {
     localStorage.removeItem(STORAGE_NFS);
@@ -2532,6 +2813,7 @@ function limparDados(){
 }
 
 function importFile(file){
+  if(!isOwner()){ showToast('Apenas o administrador pode importar arquivos.',''); return; }
   const r=new FileReader();
   r.onload=e=>{
     try{
@@ -2651,7 +2933,9 @@ function importFile(file){
             existing.adiant     = parsed.adiant;
             existing.vlrRep     = parsed.vlrRep;
             existing.posDup     = parsed.posDup;
-            existing.dadosAdic  = parsed.dadosAdic;
+            existing.dadosAdic    = parsed.dadosAdic;
+            existing.requisitante = parsed.requisitante;
+            existing.deposito     = parsed.deposito;
             existing.atualizadoEm = horaStr;
             qtdAtual++;
             const changeDesc = changes.map(ch=>`${ch.campo}: "${ch.de}" → "${ch.para}"`).join(' | ');
