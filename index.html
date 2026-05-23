@@ -2714,7 +2714,23 @@ function parseRow(r, i){
   const num        = gs('num') || `IMP${String(i+1).padStart(4,'0')}`;
   const forn       = gs('forn') || '—';
   const vR         = g('val') || 0;
-  const val        = parseFloat(String(vR).replace(/[^0-9.,]/g,'').replace(',','.')) || 0;
+  const val = (()=>{
+    const s = String(vR).trim();
+    if(!s || s==='-' || s==='—') return 0;
+    // Remove currency symbol and spaces
+    let clean = s.replace(/R\$\s*/g,'').trim();
+    // Brazilian format: 1.234.567,89 → dots=thousands, comma=decimal
+    // Check if has comma (decimal separator in pt-BR)
+    if(clean.includes(',')){
+      // Remove thousand separators (dots before comma) then replace comma with dot
+      clean = clean.replace(/\./g,'').replace(',','.');
+    } else {
+      // No comma: might be integer like 1234 or American 1234.56
+      clean = clean.replace(/[^0-9.]/g,'');
+    }
+    const n = parseFloat(clean);
+    return isNaN(n) ? 0 : n;
+  })();
   const pagto      = gs('pagto');
   const statusF    = gs('statusF');
   const eleg       = gs('eleg');
