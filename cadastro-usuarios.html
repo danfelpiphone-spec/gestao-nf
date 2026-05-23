@@ -265,7 +265,10 @@ function cadastrar(){
 function carregarUsuarios(){
   db.ref('funcionarios').once('value').then(snap=>{
     const data = snap.val()||{};
-    const lista = Object.values(data).sort((a,b)=>a.nome.localeCompare(b.nome));
+    // Filter out invalid entries (must have email and nome)
+    const lista = Object.values(data)
+      .filter(f => f && typeof f === 'object' && f.email && f.nome)
+      .sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
     const el = document.getElementById('lista-usuarios');
     const cnt = document.getElementById('total-count');
     cnt.textContent = lista.length + ' registro' + (lista.length!==1?'s':'');
