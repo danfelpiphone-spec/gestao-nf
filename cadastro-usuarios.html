@@ -192,7 +192,7 @@ function showMsg(id, msg, tipo){
 
 // Auth
 auth.onAuthStateChanged(user => {
-  if(user && OWNERS.includes(user.email.toLowerCase())){
+  if(user && OWNERS.some(o => o.toLowerCase() === user.email.toLowerCase())){
     document.getElementById('login-section').style.display = 'none';
     document.getElementById('app-section').style.display = 'block';
     document.getElementById('user-info').textContent = 'Logado como: ' + user.email;
@@ -304,20 +304,24 @@ function excluir(id, nome){
 
 // Editar — preenche formulário com dados existentes
 function editar(id){
-  db.ref('funcionarios/func_'+id).once('value').then(snap=>{
-    const f = snap.val();
-    if(!f) return;
-    document.getElementById('f-nome').value    = f.nome1||f.nome.split(' ')[0];
-    document.getElementById('f-sobrenome').value = f.sobrenome||f.nome.split(' ').slice(1).join(' ');
-    document.getElementById('f-email').value   = f.email||'';
-    document.getElementById('f-sap').value     = f.usuarioSAP||'';
-    document.getElementById('f-area').value    = f.area||'';
-    document.getElementById('f-etapa').value   = f.etapa||'';
-    document.getElementById('f-admin').checked = !!f.admin;
-    // Replace cadastrar button to update
+  db.ref('funcionarios').once('value').then(snap=>{
+    const data = snap.val()||{};
+    // Find by any key that contains the id
+    let f = data['func_'+id] || data[id] || null;
+    if(!f){
+      // Search all keys
+      Object.values(data).forEach(v=>{ if(v && String(v.id)===String(id)) f=v; });
+    }
+    if(!f){ showToast('Usuário não encontrado.','err'); return; }
+    document.getElementById('f-nome').value       = f.nome1||f.nome.split(' ')[0]||'';
+    document.getElementById('f-sobrenome').value  = f.sobrenome||f.nome.split(' ').slice(1).join(' ')||'';
+    document.getElementById('f-email').value      = f.email||'';
+    document.getElementById('f-sap').value        = f.usuarioSAP||'';
+    document.getElementById('f-area').value       = f.area||'';
+    document.getElementById('f-etapa').value      = f.etapa||'';
+    document.getElementById('f-admin').checked    = !!f.admin;
     const btn = document.querySelector('[onclick="cadastrar()"]');
-    btn.textContent = '💾 Salvar Alterações';
-    btn.onclick = ()=>salvarEdicao(id, f);
+    if(btn){ btn.textContent='💾 Salvar Alterações'; btn.onclick=()=>salvarEdicao(id,f); }
     window.scrollTo(0,0);
     showMsg('f-msg','Editando: '+f.nome+'. Faça as alterações e clique em Salvar.','ok');
   });
@@ -331,7 +335,7 @@ function salvarEdicao(id, original){
   const area  = document.getElementById('f-area').value.trim();
   const etapa = document.getElementById('f-etapa').value;
   const admin = document.getElementById('f-admin').checked;
-  if(!nome||!sobre||!email||!area||!etapa){ showMsg('f-msg','Preencha todos os campos obrigatórios.'); return; }
+  if(!nome||!email){ showMsg('f-msg','Preencha nome e e-mail.'); return; }
   const atualizado = {id, nome:nome+' '+sobre, nome1:nome, sobrenome:sobre, email, usuarioSAP:sap, area, etapa, cargo:'', admin};
   db.ref('funcionarios/func_'+id).set(atualizado)
     .then(()=>{
