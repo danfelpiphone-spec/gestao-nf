@@ -287,7 +287,8 @@ function carregarUsuarios(){
       <div class="func-row">
         <span style="flex:1"><strong>${f.nome}</strong><br><span style="color:#999;font-size:11px">${f.email||'sem e-mail'}</span></span>
         <span style="width:80px;font-family:monospace;font-size:11px;color:#0854a0">${f.usuarioSAP||'—'}</span>
-        <span style="width:130px"><span class="area-tag">${f.area}</span></span>
+        <span style="width:100px"><span class="area-tag">${f.etapa||'—'}</span></span>
+        <span style="width:130px;font-size:11px;color:#555">${f.area||'—'}</span>
         <span style="width:60px">${f.admin?'<span class="admin-tag">ADMIN</span>':'<span style="font-size:11px;color:#999">Usuário</span>'}</span>
         <span style="width:120px;display:flex;gap:4px">
           <button class="btn btn-secondary" onclick="editar('${f.id}')" style="font-size:10px;padding:3px 8px">✏ Editar</button>
@@ -300,7 +301,14 @@ function carregarUsuarios(){
 // Excluir
 function excluir(id, nome){
   if(!confirm('Remover '+nome+'?')) return;
-  db.ref('funcionarios/func_'+id).remove()
+  // Find and delete by searching all keys
+  db.ref('funcionarios').once('value').then(snap=>{
+    const data = snap.val()||{};
+    const key = Object.keys(data).find(k=> data[k] && String(data[k].id)===String(id));
+    if(key) db.ref('funcionarios/'+key).remove()
+      .then(()=>{ showToast(nome+' removido.','ok'); carregarUsuarios(); })
+      .catch(e=>showToast('Erro: '+e.message,'err'));
+  }); return
     .then(()=>{ showToast(nome+' removido.','ok'); carregarUsuarios(); })
     .catch(e=>showToast('Erro: '+e.message,'err'));
 }
@@ -338,9 +346,12 @@ function salvarEdicao(id, original){
   const area  = document.getElementById('f-area').value.trim();
   const etapa = document.getElementById('f-etapa').value;
   const admin = document.getElementById('f-admin').checked;
-  if(!nome||!email){ showMsg('f-msg','Preencha nome e e-mail.'); return; }
+  if(!email){ showMsg('f-msg','Informe o e-mail.'); return; }
   const atualizado = {id, nome:nome+' '+sobre, nome1:nome, sobrenome:sobre, email, usuarioSAP:sap, area, etapa, cargo:'', admin};
-  db.ref('funcionarios/func_'+id).set(atualizado)
+  // Use email-based key to match JSON import format
+  const emailKey = email.replace('@','_at_').replace(/\./g,'_').replace(/-/g,'_');
+  const fbKey = 'func_' + emailKey;
+  db.ref('funcionarios/'+fbKey).set({...atualizado, id: atualizado.id})
     .then(()=>{
       showToast('Usuário atualizado!','ok');
       const btn = document.querySelector('[onclick*="salvarEdicao"]');
