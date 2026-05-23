@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadastro de Usuários — GestãoNF</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;background:#f0f2f5;min-height:100vh}
+  .header{background:linear-gradient(to right,#0854a0,#1a73d4);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px}
+  .header h1{font-size:16px;font-weight:700}
+  .header span{font-size:12px;opacity:.8}
+  .container{max-width:900px;margin:24px auto;padding:0 16px;display:flex;flex-direction:column;gap:16px}
+  .card{background:#fff;border:1px solid #d9d9d9;border-radius:4px;overflow:hidden}
+  .card-hdr{background:linear-gradient(to bottom,#f2f2f2,#e8e8e8);border-bottom:1px solid #d9d9d9;padding:9px 14px;font-size:13px;font-weight:700;color:#333;display:flex;align-items:center;justify-content:space-between}
+  .card-body{padding:16px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+  .field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;color:#666;letter-spacing:.4px;margin-bottom:4px}
+  .field input,.field select{width:100%;padding:7px 10px;border:1px solid #bbb;border-radius:4px;font-size:13px;font-family:Arial,sans-serif;outline:none}
+  .field input:focus,.field select:focus{border-color:#0854a0;box-shadow:0 0 0 2px rgba(8,84,160,.12)}
+  .chk-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .chk-row input{width:15px;height:15px;cursor:pointer}
+  .chk-row label{font-size:13px;color:#333;cursor:pointer}
+  .btn{padding:8px 18px;border:1px solid;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif}
+  .btn-primary{background:linear-gradient(to bottom,#1a73d4,#0854a0);color:#fff;border-color:#0854a0}
+  .btn-primary:hover{opacity:.9}
+  .btn-secondary{background:#fff;color:#0854a0;border-color:#0854a0}
+  .btn-secondary:hover{background:#eef5fc}
+  .btn-danger{background:#fff;color:#bb0000;border-color:#bb0000}
+  .btn-danger:hover{background:#fff1f1}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .toast{position:fixed;bottom:20px;right:20px;background:#333;color:#fff;padding:10px 18px;border-radius:4px;font-size:13px;display:none;z-index:9999}
+  .toast.ok{background:#107e3e}
+  .toast.err{background:#bb0000}
+  .func-row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #eee;font-size:12px}
+  .func-row:last-child{border-bottom:none}
+  .func-row:hover{background:#f8fbff}
+  .area-tag{background:#e4f0fb;color:#0854a0;border:1px solid #a4caee;font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px}
+  .admin-tag{background:#fff3e0;color:#e65100;border:1px solid #ffcc80;font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px}
+  .empty{text-align:center;padding:30px;color:#999;font-size:13px}
+  .login-box{background:#fff;border:1px solid #d9d9d9;border-radius:4px;padding:32px;max-width:380px;margin:60px auto;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.1)}
+  .login-box h2{color:#0854a0;margin-bottom:8px;font-size:18px}
+  .login-box p{color:#666;font-size:12px;margin-bottom:20px}
+  .import-zone{border:2px dashed #bbb;border-radius:4px;padding:16px;text-align:center;color:#999;font-size:12px;cursor:pointer;transition:.15s}
+  .import-zone:hover{border-color:#0854a0;color:#0854a0}
+  .msg{padding:8px 12px;border-radius:4px;font-size:12px;margin-top:8px;display:none}
+  .msg.ok{background:#f1fdf6;color:#107e3e;border:1px solid #a9d5b5;display:block}
+  .msg.err{background:#fff1f1;color:#bb0000;border:1px solid #f5b3b3;display:block}
+  .sep{height:1px;background:#eee;margin:12px 0}
+  #login-section{display:block}
+  #app-section{display:none}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>⚙ Gestão de Usuários — GestãoNF</h1>
+    <span id="user-info">Não conectado</span>
+  </div>
+  <div style="margin-left:auto">
+    <button class="btn btn-danger" id="btn-logout" onclick="fazerLogout()" style="display:none">Sair</button>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-section">
+  <div class="login-box">
+    <h2>🔐 Login</h2>
+    <p>Acesso restrito ao administrador do sistema</p>
+    <div class="field" style="margin-bottom:10px;text-align:left">
+      <label>E-mail</label>
+      <input id="l-email" type="email" placeholder="admin@empresa.com.br">
+    </div>
+    <div class="field" style="margin-bottom:14px;text-align:left">
+      <label>Senha</label>
+      <input id="l-senha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLogin()">
+    </div>
+    <button class="btn btn-primary" id="l-btn" onclick="fazerLogin()" style="width:100%">Entrar</button>
+    <div class="msg" id="l-msg"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-section">
+  <div class="container">
+
+    <!-- Cadastro individual -->
+    <div class="card">
+      <div class="card-hdr">👤 Cadastrar Usuário</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="field"><label>Nome</label><input id="f-nome" placeholder="Nome"></div>
+          <div class="field"><label>Sobrenome</label><input id="f-sobrenome" placeholder="Sobrenome"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>E-mail (login)</label><input id="f-email" type="email" placeholder="usuario@empresa.com.br"></div>
+          <div class="field"><label>Usuário SAP</label><input id="f-sap" placeholder="Ex: JSILVA"></div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Departamento</label>
+            <input id="f-area" placeholder="Ex: PCM, Captação, Financeiro...">
+          </div>
+          <div class="field">
+            <label>Etapa (fluxo NF)</label>
+            <select id="f-etapa">
+              <option value="">Selecione a etapa...</option>
+              <option>Suprimentos</option>
+              <option>MIGO</option>
+              <option>MIRO</option>
+              <option>CAP</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field" style="display:flex;align-items:center;padding-bottom:4px">
+            <div class="chk-row">
+              <input type="checkbox" id="f-admin">
+              <label for="f-admin">Admin do Departamento</label>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="cadastrar()">+ Cadastrar</button>
+        <div class="msg" id="f-msg"></div>
+      </div>
+    </div>
+
+    <!-- Importação em massa -->
+    <div class="card">
+      <div class="card-hdr">
+        📥 Importação em Massa
+        <button class="btn btn-secondary" onclick="baixarTemplate()" style="font-size:11px;padding:4px 10px">⬇ Baixar Template</button>
+      </div>
+      <div class="card-body">
+        <div class="import-zone" onclick="document.getElementById('imp-file').click()">
+          📂 Clique aqui ou arraste o arquivo Excel/CSV
+          <br><span style="font-size:11px">Colunas: Nome | Sobrenome | Usuário SAP | E-mail | Departamento | Etapa | Admin (SIM/NAO)</span>
+        </div>
+        <input type="file" id="imp-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarMassa(this)">
+        <div class="msg" id="imp-msg"></div>
+      </div>
+    </div>
+
+    <!-- Lista de usuários -->
+    <div class="card">
+      <div class="card-hdr">
+        👥 Usuários Cadastrados
+        <span id="total-count" style="font-size:11px;color:#666;font-weight:400">0 registros</span>
+      </div>
+      <div id="lista-usuarios"><div class="empty">Carregando...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyBaWlNBg1pWe8sMSKbZGdWWPLHZWET8890",
+  authDomain: "danfelproject.firebaseapp.com",
+  databaseURL: "https://danfelproject-default-rtdb.firebaseio.com",
+  projectId: "danfelproject",
+  storageBucket: "danfelproject.firebasestorage.app",
+  messagingSenderId: "474832580279",
+  appId: "1:474832580279:web:61055352610d4f1a03a732"
+});
+const auth = firebase.auth();
+const db   = firebase.database();
+
+const OWNERS = ['danfelpiphone@gmail.com','danfelpiphone@gamil.com','daniel.jorge@mills.com.br'];
+
+function showToast(msg, tipo){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (tipo||'');
+  t.style.display = 'block';
+  setTimeout(()=>t.style.display='none', 3000);
+}
+
+function showMsg(id, msg, tipo){
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'msg ' + (tipo||'err');
+}
+
+// Auth
+auth.onAuthStateChanged(user => {
+  if(user && OWNERS.includes(user.email.toLowerCase())){
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('app-section').style.display = 'block';
+    document.getElementById('user-info').textContent = 'Logado como: ' + user.email;
+    document.getElementById('btn-logout').style.display = '';
+    carregarUsuarios();
+  } else if(user){
+    auth.signOut();
+    showMsg('l-msg','Acesso negado. Apenas administradores.','err');
+  } else {
+    document.getElementById('login-section').style.display = 'block';
+    document.getElementById('app-section').style.display = 'none';
+    document.getElementById('btn-logout').style.display = 'none';
+    document.getElementById('user-info').textContent = 'Não conectado';
+  }
+});
+
+function fazerLogin(){
+  const email = document.getElementById('l-email').value.trim();
+  const senha = document.getElementById('l-senha').value;
+  const btn   = document.getElementById('l-btn');
+  if(!email||!senha){ showMsg('l-msg','Preencha e-mail e senha.'); return; }
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  auth.signInWithEmailAndPassword(email, senha)
+    .catch(e => {
+      btn.disabled = false; btn.textContent = 'Entrar';
+      const msgs = {
+        'auth/user-not-found':'Usuário não encontrado.',
+        'auth/wrong-password':'Senha incorreta.',
+        'auth/invalid-credential':'E-mail ou senha incorretos.'
+      };
+      showMsg('l-msg', msgs[e.code]||'Erro: '+e.message);
+    });
+}
+
+function fazerLogout(){ auth.signOut(); }
+
+// Cadastrar
+function cadastrar(){
+  const nome     = document.getElementById('f-nome').value.trim();
+  const sobre    = document.getElementById('f-sobrenome').value.trim();
+  const email    = document.getElementById('f-email').value.trim().toLowerCase();
+  const sap      = document.getElementById('f-sap').value.trim().toUpperCase();
+  const area     = document.getElementById('f-area').value;
+  const admin    = document.getElementById('f-admin').checked;
+
+  if(!nome||!sobre){ showMsg('f-msg','Informe nome e sobrenome.'); return; }
+  if(!email){ showMsg('f-msg','Informe o e-mail.'); return; }
+  if(!area){ showMsg('f-msg','Informe o departamento.'); return; }
+  if(!etapa){ showMsg('f-msg','Selecione a etapa.'); return; }
+
+  const id = Date.now();
+  const func = {id, nome:nome+' '+sobre, nome1:nome, sobrenome:sobre, email, usuarioSAP:sap, area, etapa, cargo:'', admin};
+
+  db.ref('funcionarios/func_'+id).set(func)
+    .then(()=>{
+      showMsg('f-msg', nome+' '+sobre+' cadastrado com sucesso!', 'ok');
+      document.getElementById('f-nome').value='';
+      document.getElementById('f-sobrenome').value='';
+      document.getElementById('f-email').value='';
+      document.getElementById('f-sap').value='';
+      document.getElementById('f-area').value='';
+      document.getElementById('f-etapa').value='';
+      document.getElementById('f-admin').checked=false;
+      carregarUsuarios();
+    })
+    .catch(e => showMsg('f-msg','Erro: '+e.message));
+}
+
+// Carregar e renderizar lista
+function carregarUsuarios(){
+  db.ref('funcionarios').once('value').then(snap=>{
+    const data = snap.val()||{};
+    const lista = Object.values(data).sort((a,b)=>a.nome.localeCompare(b.nome));
+    const el = document.getElementById('lista-usuarios');
+    const cnt = document.getElementById('total-count');
+    cnt.textContent = lista.length + ' registro' + (lista.length!==1?'s':'');
+    if(!lista.length){ el.innerHTML='<div class="empty">Nenhum usuário cadastrado ainda.</div>'; return; }
+
+    const header = '<div class="func-row" style="background:#f2f2f2;font-weight:700;font-size:11px;text-transform:uppercase;color:#666;border-bottom:2px solid #ccc">' +
+      '<span style="flex:1">Nome / E-mail</span>' +
+      '<span style="width:80px">SAP</span>' +
+      '<span style="width:100px">Etapa</span>' +
+      '<span style="width:130px">Departamento</span>' +
+      '<span style="width:60px">Perfil</span>' +
+      '<span style="width:120px">Ações</span>' +
+    '</div>';
+
+    el.innerHTML = header + lista.map(f=>`
+      <div class="func-row">
+        <span style="flex:1"><strong>${f.nome}</strong><br><span style="color:#999;font-size:11px">${f.email||'sem e-mail'}</span></span>
+        <span style="width:80px;font-family:monospace;font-size:11px;color:#0854a0">${f.usuarioSAP||'—'}</span>
+        <span style="width:130px"><span class="area-tag">${f.area}</span></span>
+        <span style="width:60px">${f.admin?'<span class="admin-tag">ADMIN</span>':'<span style="font-size:11px;color:#999">Usuário</span>'}</span>
+        <span style="width:120px;display:flex;gap:4px">
+          <button class="btn btn-secondary" onclick="editar('${f.id}')" style="font-size:10px;padding:3px 8px">✏ Editar</button>
+          <button class="btn btn-danger" onclick="excluir('${f.id}','${f.nome}')" style="font-size:10px;padding:3px 8px">✕</button>
+        </span>
+      </div>`).join('');
+  });
+}
+
+// Excluir
+function excluir(id, nome){
+  if(!confirm('Remover '+nome+'?')) return;
+  db.ref('funcionarios/func_'+id).remove()
+    .then(()=>{ showToast(nome+' removido.','ok'); carregarUsuarios(); })
+    .catch(e=>showToast('Erro: '+e.message,'err'));
+}
+
+// Editar — preenche formulário com dados existentes
+function editar(id){
+  db.ref('funcionarios/func_'+id).once('value').then(snap=>{
+    const f = snap.val();
+    if(!f) return;
+    document.getElementById('f-nome').value    = f.nome1||f.nome.split(' ')[0];
+    document.getElementById('f-sobrenome').value = f.sobrenome||f.nome.split(' ').slice(1).join(' ');
+    document.getElementById('f-email').value   = f.email||'';
+    document.getElementById('f-sap').value     = f.usuarioSAP||'';
+    document.getElementById('f-area').value    = f.area||'';
+    document.getElementById('f-etapa').value   = f.etapa||'';
+    document.getElementById('f-admin').checked = !!f.admin;
+    // Replace cadastrar button to update
+    const btn = document.querySelector('[onclick="cadastrar()"]');
+    btn.textContent = '💾 Salvar Alterações';
+    btn.onclick = ()=>salvarEdicao(id, f);
+    window.scrollTo(0,0);
+    showMsg('f-msg','Editando: '+f.nome+'. Faça as alterações e clique em Salvar.','ok');
+  });
+}
+
+function salvarEdicao(id, original){
+  const nome  = document.getElementById('f-nome').value.trim();
+  const sobre = document.getElementById('f-sobrenome').value.trim();
+  const email = document.getElementById('f-email').value.trim().toLowerCase();
+  const sap   = document.getElementById('f-sap').value.trim().toUpperCase();
+  const area  = document.getElementById('f-area').value.trim();
+  const etapa = document.getElementById('f-etapa').value;
+  const admin = document.getElementById('f-admin').checked;
+  if(!nome||!sobre||!email||!area||!etapa){ showMsg('f-msg','Preencha todos os campos obrigatórios.'); return; }
+  const atualizado = {id, nome:nome+' '+sobre, nome1:nome, sobrenome:sobre, email, usuarioSAP:sap, area, etapa, cargo:'', admin};
+  db.ref('funcionarios/func_'+id).set(atualizado)
+    .then(()=>{
+      showToast('Usuário atualizado!','ok');
+      const btn = document.querySelector('[onclick*="salvarEdicao"]');
+      if(btn){ btn.textContent='+ Cadastrar'; btn.onclick=cadastrar; }
+      document.getElementById('f-nome').value='';
+      document.getElementById('f-sobrenome').value='';
+      document.getElementById('f-email').value='';
+      document.getElementById('f-sap').value='';
+      document.getElementById('f-area').value='';
+      document.getElementById('f-etapa').value='';
+      document.getElementById('f-admin').checked=false;
+      document.getElementById('f-msg').className='msg';
+      carregarUsuarios();
+    }).catch(e=>showMsg('f-msg','Erro: '+e.message));
+}
+
+// Importação em massa
+function importarMassa(input){
+  const file = input.files[0];
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try{
+      const wb   = XLSX.read(e.target.result,{type:'binary'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length){ showMsg('imp-msg','Arquivo sem dados.'); return; }
+      const nrm = v => String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+      let qtd=0, erros=0;
+      const promises = rows.map(row=>{
+        const nome  = String(row['Nome']||row['nome']||'').trim();
+        const sobre = String(row['Sobrenome']||row['sobrenome']||'').trim();
+        const email = String(row['E-mail']||row['Email']||row['email']||'').trim().toLowerCase();
+        const sap   = String(row['Usuário SAP']||row['Usuario SAP']||row['SAP']||'').trim().toUpperCase();
+        const area  = String(row['Departamento']||row['Depto']||row['area']||'').trim();
+        const etapa = String(row['Etapa']||row['etapa']||'').trim();
+        const adm   = nrm(row['Admin (SIM/NAO)']||row['Admin']||'');
+        if(!nome||!sobre||!email||!area){ erros++; return Promise.resolve(); }
+        qtd++;
+        const id = Date.now()+Math.random();
+        const admin = adm==='sim'||adm==='s'||adm==='yes';
+        const func = {id, nome:nome+' '+sobre, nome1:nome, sobrenome:sobre, email, usuarioSAP:sap, area, etapa, cargo:'', admin};
+        return db.ref('funcionarios/func_'+Math.round(id)).set(func);
+      });
+      Promise.all(promises).then(()=>{
+        showMsg('imp-msg', qtd+' usuário(s) importado(s)'+(erros?' · '+erros+' linha(s) ignorada(s)':'')+'!','ok');
+        carregarUsuarios();
+        input.value='';
+      });
+    }catch(err){ showMsg('imp-msg','Erro ao ler arquivo: '+err.message); }
+  };
+  r.readAsBinaryString(file);
+}
+
+// Template download
+function baixarTemplate(){
+  const rows = [
+    ['Nome','Sobrenome','Usuário SAP','E-mail','Departamento','Etapa','Admin (SIM/NAO)'],
+    ['João','Silva','JSILVA','joao.silva@empresa.com.br','PCM','MIGO','NAO'],
+    ['Maria','Costa','MCOSTA','maria.costa@empresa.com.br','Captação','CAP','SIM'],
+  ];
+  const csv = rows.map(r=>r.map(v=>'"'+v+'"').join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'template_usuarios_gestaoNF.csv';
+  a.click();
+}
+
+// Live reload on Firebase changes
+db.ref('funcionarios').on('value', ()=>{ if(document.getElementById('app-section').style.display!=='none') carregarUsuarios(); });
+</script>
+</body>
+</html>

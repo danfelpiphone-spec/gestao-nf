@@ -283,6 +283,18 @@
   .period-clear:hover { color:var(--red); }
 
 
+  /* RANKING ATRASOS */
+  .rank-row { display:flex; align-items:center; gap:10px; padding:8px 14px; border-bottom:1px solid var(--border); font-size:12px; }
+  .rank-row:last-child { border-bottom:none; }
+  .rank-row:hover { background:var(--row-hover); }
+  .rank-pos { font-family:'Courier New',monospace; font-weight:700; color:var(--muted); width:24px; text-align:center; flex-shrink:0; }
+  .rank-pos.top1 { color:#c8a400; }
+  .rank-pos.top2 { color:#888; }
+  .rank-pos.top3 { color:#a05c00; }
+  .rank-alert { font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; border:1px solid; flex-shrink:0; }
+  .rank-alert.migo { background:#f3e5f5; color:#6a1a75; border-color:#ce93d8; }
+  .rank-alert.miro { background:#fff3e0; color:#e65100; border-color:#ffcc80; }
+
   /* ARQUIVOS */
   .arq-card  { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
   .arq-hdr   { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:7px 14px; font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
@@ -379,13 +391,13 @@
     padding:1px 5px; border-radius:3px; letter-spacing:.4px; }
 
   /* CONFIGURAÇÕES */
-  .cfg-grid { display:flex; flex-direction:column; gap:16px; width:100%; min-height:200px; }
-  .cfg-form-card { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; min-height:100px; }
+  .cfg-grid { display:flex; flex-direction:column; gap:16px; width:100%; }
+  .cfg-form-card { background:#ffffff; border:1px solid #d9d9d9; border-radius:4px; overflow:visible; }
   .cfg-form-hdr { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:7px 12px; font-size:13px; font-weight:700; }
   .cfg-form-body { padding:14px; display:flex; flex-direction:column; gap:10px; }
   .cfg-field { display:flex; flex-direction:column; gap:3px; }
   .cfg-field label { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:.4px; }
-  .cfg-list-card { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; width:100%; }
+  .cfg-list-card { background:#ffffff; border:1px solid #d9d9d9; border-radius:4px; overflow:visible; width:100%; }
   .cfg-list-hdr { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:7px 12px; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:space-between; }
   .func-row { display:flex; align-items:center; gap:0; padding:6px 12px; border-bottom:1px solid var(--border); font-size:12px; }
   .func-row:last-child { border-bottom:none; }
@@ -728,6 +740,29 @@
           <div class="rel-bar-wrap" id="rel-media-bars">
             <div class="rel-empty">Importe ao menos 2 dias para calcular a média.</div>
           </div>
+
+      <!-- R5: Ranking MIGO — NFs acima de 14 dias -->
+      <div class="rel-card rel-card-full">
+        <div class="rel-card-hdr">
+          🔴 Ranking MIGO — Requisitantes com NFs acima de 14 dias em aberto
+          <span style="margin-left:auto;font-size:11px;font-weight:400;color:var(--muted)">Critério: Etapa MIGO + Emissão &gt; 14 dias</span>
+        </div>
+        <div id="rel-rank-migo">
+          <div class="rel-empty">Importe um arquivo para ver o ranking.</div>
+        </div>
+      </div>
+
+      <!-- R6: Ranking MIRO — NFs acima de 21 dias -->
+      <div class="rel-card rel-card-full">
+        <div class="rel-card-hdr">
+          🟠 Ranking MIRO — Requisitantes com NFs acima de 21 dias em aberto
+          <span style="margin-left:auto;font-size:11px;font-weight:400;color:var(--muted)">Critério: Etapa MIRO + Emissão &gt; 21 dias</span>
+        </div>
+        <div id="rel-rank-miro">
+          <div class="rel-empty">Importe um arquivo para ver o ranking.</div>
+        </div>
+      </div>
+
       <!-- R3: Fornecedores com mais NFs paradas -->
       <div class="rel-card rel-card-full">
         <div class="rel-card-hdr">
@@ -778,63 +813,40 @@
 
   <!-- CONFIGURAÇÕES -->
   <div class="view" id="view-cfg">
-    <div class="cfg-grid">
 
-      <!-- FORMULÁRIO -->
-      <div class="cfg-form-card">
-        <div class="cfg-form-hdr">👤 Cadastrar Usuário</div>
-        <div class="cfg-form-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div class="cfg-field">
-              <label>Nome</label>
-              <input class="sap-input" id="cfg-nome" placeholder="Nome" style="width:100%">
-            </div>
-            <div class="cfg-field">
-              <label>Sobrenome</label>
-              <input class="sap-input" id="cfg-sobrenome" placeholder="Sobrenome" style="width:100%">
-            </div>
-          </div>
-          <div class="cfg-field">
-            <label>E-mail (login no sistema)</label>
-            <input class="sap-input" id="cfg-email" type="email" placeholder="usuario@empresa.com.br" style="width:100%" autocomplete="off">
-          </div>
-          <div class="cfg-field">
-            <label>Usuário SAP</label>
-            <input class="sap-input" id="cfg-sap" placeholder="Ex: JSILVA, MPEREIRA..." style="width:100%" autocomplete="off">
-          </div>
-          <div class="cfg-field">
-            <label>Área / Departamento</label>
-            <select class="sap-sel" id="cfg-area" style="width:100%">
-              <option value="">Selecione a área...</option>
-              <option>Suprimentos</option><option>MIGO</option>
-              <option>MIRO</option><option>CAP</option>
-            </select>
-          </div>
-          <div class="cfg-field" style="flex-direction:row;align-items:center;gap:8px">
-            <input type="checkbox" id="cfg-admin" style="width:14px;height:14px;cursor:pointer">
-            <label for="cfg-admin" style="text-transform:none;font-size:12px;color:var(--text);cursor:pointer;letter-spacing:0">
-              Admin da Área (recebe todas as notificações da área)
-            </label>
-          </div>
-          <button class="sap-btn primary" onclick="salvarFuncionario()" style="align-self:flex-start">+ Cadastrar</button>
+    <!-- INFO PANEL -->
+    <div style="background:#e8f2fd;border:1px solid #a4caee;border-radius:4px;padding:14px 16px;margin-bottom:12px;font-size:12px;line-height:1.7">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="font-weight:700;color:#0854a0;margin-bottom:6px">🔐 1. Acesso ao sistema</div>
+          Feito no <strong>Firebase Console</strong> pelos owners.<br>
+          Cadastre o <strong>e-mail</strong> e a <strong>senha</strong> de cada usuário em:<br>
+          <a href="https://console.firebase.google.com/project/danfelproject/authentication/users" target="_blank" style="color:#0854a0">Firebase → Authentication → Users</a>
+        </div>
+        <div>
+          <div style="font-weight:700;color:#0854a0;margin-bottom:6px">⚙ 2. Configuração do perfil</div>
+          Após o cadastro no Firebase, configure aqui:<br>
+          • <strong>Etapa</strong> — Suprimentos / MIGO / MIRO / CAP<br>
+          • <strong>Departamento</strong> — departamento do usuário<br>
+          • <strong>Permissões</strong> — Admin ou Usuário
         </div>
       </div>
-
-      <!-- LISTA -->
-      <div class="cfg-list-card">
-        <div class="cfg-list-hdr">
-          <span>Usuários Cadastrados</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span id="cfg-count" style="font-size:11px;color:var(--muted);font-weight:400">0 registros</span>
-            <button class="sap-btn" id="btn-cfg-template" onclick="baixarTemplate()">⬇ Template</button>
-            <button class="sap-btn primary" id="btn-cfg-import" onclick="document.getElementById('cfg-import-input').click()">↑ Importar</button>
-            <input type="file" id="cfg-import-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarUsuarios(this)">
-          </div>
-        </div>
-        <div id="cfg-list"></div>
-      </div>
-
     </div>
+
+    <!-- USER LIST -->
+    <div style="background:#fff;border:1px solid #d9d9d9;border-radius:4px;overflow:hidden">
+      <div style="background:linear-gradient(to bottom,#f2f2f2,#e8e8e8);border-bottom:1px solid #d9d9d9;padding:9px 14px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between">
+        <span>⚙ Configuração de Usuários</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="cfg-count" style="font-size:11px;color:#888;font-weight:400">0 registros</span>
+          <button class="sap-btn primary" onclick="abrirNovoUsuario()">+ Novo Usuário</button>
+        </div>
+      </div>
+      <div id="cfg-list">
+        <div style="text-align:center;padding:30px;color:#999;font-size:13px">Carregando usuários...</div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -865,7 +877,7 @@
         <input class="sap-input" id="edit-sap" style="width:100%">
       </div>
       <div class="cfg-field">
-        <label>Área / Departamento</label>
+        <label>Departamento</label>
         <select class="sap-sel" id="edit-area" style="width:100%">
           <option value="">Selecione...</option>
           <option>Suprimentos</option><option>MIGO</option>
@@ -875,7 +887,7 @@
       <div class="cfg-field" style="flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="edit-admin" style="width:14px;height:14px;cursor:pointer">
         <label for="edit-admin" style="text-transform:none;font-size:12px;color:var(--text);cursor:pointer;letter-spacing:0">
-          Admin da Área
+          Admin do Departamento
         </label>
       </div>
     </div>
@@ -912,9 +924,12 @@
             </div>
             <textarea class="msg-ta" id="msg-ta" placeholder="Descreva a ocorrência, ajuste necessário ou confirmação..."></textarea>
           </div>
-          <div class="new-msg-actions">
-            <button class="sap-btn" onclick="gerarEmail()">✉ Gerar E-mail</button>
-            <button class="sap-btn primary" onclick="enviarMsg()">↑ Enviar Mensagem</button>
+          <div class="new-msg-actions" style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;gap:6px">
+              <button class="sap-btn" onclick="gerarEmail()">✉ Gerar E-mail</button>
+              <button class="sap-btn primary" onclick="enviarMsg()">↑ Enviar Mensagem</button>
+            </div>
+            <button class="modal-close" onclick="document.getElementById('modal-ov').classList.remove('open');document.body.style.overflow='';currentNF=null;" title="Fechar" style="width:28px;height:28px;font-size:14px">✕</button>
           </div>
         </div>
       </div>
@@ -1054,8 +1069,8 @@ function exportarNFs(){
     'Status','Etapa Atual','Áreas Envolvidas',
     'Status MIGO','MIRO / Doc','Doc Pagamento',
     'Forma de Pagamento','Condições Pgto.',
-    'Criador do Pedido','Adiantamento ECC',
-    'Possível Duplicidade','Qtd. Mensagens'
+    'Criador do Pedido','Requisitante','Depósito','Centro',
+    'Adiantamento ECC','Possível Duplicidade','Qtd. Mensagens'
   ];
 
   const rows = list.map(n => [
@@ -1075,6 +1090,9 @@ function exportarNFs(){
     n.formaPgto||'',
     n.condPgto||'',
     n.criador||'',
+    n.requisitante||'',
+    n.deposito||'',
+    n.centro||'',
     n.adiant||'',
     n.posDup||'',
     (n.msgs||[]).length
@@ -1087,7 +1105,8 @@ function exportarNFs(){
   ws['!cols'] = [
     {wch:12},{wch:40},{wch:15},{wch:15},{wch:14},{wch:14},
     {wch:14},{wch:12},{wch:14},{wch:30},{wch:18},{wch:16},
-    {wch:16},{wch:20},{wch:16},{wch:20},{wch:25},{wch:25},{wch:12}
+    {wch:16},{wch:20},{wch:16},{wch:20},{wch:25},{wch:15},{wch:15},
+    {wch:25},{wch:25},{wch:12}
   ];
 
   const wb = XLSX.utils.book_new();
@@ -1368,9 +1387,9 @@ function salvarArquivoFirebase(arq){
   db.ref('arquivos/' + arq.id).set(arq);
 }
 
+document.addEventListener('DOMContentLoaded', ()=>{ if(document.getElementById('view-cfg').classList.contains('active')) renderCfgList(); });
+
 window.onload=()=>{
-  // Show login screen by default until Firebase auth resolves
-  document.getElementById('login-screen').style.display = 'flex';
   setupDrop();
   document.getElementById('excel-input').addEventListener('change',e=>{if(e.target.files[0])importFile(e.target.files[0]);});
   // Auth state handles app init
@@ -1383,7 +1402,7 @@ function refresh(){
   b.textContent=u||''; b.style.display=u?'':'none';
 }
 
-const vmap={dashboard:'Dashboard — Controle de Notas Fiscais',nfs:'Notas Fiscais',notif:'Central de Notificações',historico:'Histórico — Notas Fiscais Pagas',relatorios:'Relatórios',arquivos:'Arquivos — Gestão de Importações',cfg:'Configurações — Funcionários por Área'};
+const vmap={dashboard:'Dashboard — Controle de Notas Fiscais',nfs:'Notas Fiscais',notif:'Central de Notificações',historico:'Histórico — Notas Fiscais Pagas',relatorios:'Relatórios',arquivos:'Arquivos — Gestão de Importações',cfg:'Configurações — Usuários e Permissões'};
 function showView(v,btn){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.snav-btn').forEach(el=>el.classList.remove('active'));
@@ -1394,7 +1413,7 @@ function showView(v,btn){
   if(v==='cfg'){window.scrollTo(0,0);renderCfgList();}
   if(v==='historico'){renderHistorico();renderHistoricoKPIs();}
   if(v==='arquivos'){renderArquivos();}
-  if(v==='relatorios'){renderRelatorios();}
+  if(v==='relatorios'){renderRelatorios();renderRelRankings();}
 }
 
 function updateStats(){
@@ -1686,7 +1705,7 @@ function openModal(id){
     <div class="dcell"><label>MIRO / Doc (col O)</label><div class="dval mono">${n.miro||'—'}</div></div>
     <div class="dcell"><label>Requisitante</label><div class="dval">${n.requisitante||'—'}</div></div>
     <div class="dcell"><label>Forma de Pagamento</label><div class="dval">${n.formaPgto||'—'}</div></div>
-    <div class="dcell"><label>Área (Departamento)</label><div class="dval">${currentUser?currentUser.area:'—'}</div></div>
+    <div class="dcell"><label>Departamento</label><div class="dval">${currentUser?currentUser.area:'—'}</div></div>
     ${n.adiant?`<div class="dcell" style="border-top:2px solid var(--yellow)"><label>⚠ Adiantamento ECC</label><div class="dval" style="color:var(--yellow);font-weight:700">${n.adiant}</div></div>`:''}
     ${n.posDup?`<div class="dcell" style="border-top:2px solid var(--red)"><label>⚠ Possível Duplicidade</label><div class="dval" style="color:var(--red);font-weight:700">${n.posDup}</div></div>`:''}
     ${n.vlrRep?`<div class="dcell"><label>Valor NF x CNPJ Repetido</label><div class="dval mono">${n.vlrRep}</div></div>`:''}
@@ -1791,16 +1810,32 @@ function copiarEmail(){navigator.clipboard.writeText(document.getElementById('e-
 
 function notifsDoUsuario(){
   if(!_fbUser) return [];
-  const email = _fbUser.email.toLowerCase();
+  const email  = _fbUser.email.toLowerCase();
+  const owner  = OWNER_EMAILS.some(o=>email===o.toLowerCase());
+  const etapa  = currentUser ? (currentUser.etapa||currentUser.area||'') : '';
+  const isAdm  = currentUser ? !!currentUser.admin : false;
+
   return notifs.filter(n=>{
-    // Sistema (importação, etc) sem área — todos veem
-    if(!n.area && !n.destinatario && !n.destinatarioEmail) return true;
-    // Direcionada a funcionário específico por e-mail → só esse usuário
-    if(n.destinatarioEmail && n.destinatarioEmail.toLowerCase()===email) return true;
-    // Direcionada por nome → verifica se é este usuário
-    if(n.destinatario && currentUser && n.destinatario===currentUser.nome) return true;
-    // Sem destinatário específico mas com área → todos os funcionários daquela área veem
-    if(n.area && !n.destinatarioEmail && !n.destinatario && currentUser && currentUser.area===n.area) return true;
+    // REGRA 1: Notificações de importação → só owners
+    if(n.somenteOwners) return owner;
+
+    // REGRA 2: Direcionada a usuário específico por e-mail → só esse usuário
+    if(n.destinatarioEmail) return n.destinatarioEmail.toLowerCase()===email;
+
+    // REGRA 3: Direcionada por nome → só esse usuário
+    if(n.destinatario && currentUser) return n.destinatario===currentUser.nome;
+
+    // REGRA 4: Sem destinatário específico mas com etapa/área
+    //   → Admin da etapa recebe todas as da sua etapa
+    //   → Usuário comum recebe apenas as da sua etapa
+    if(n.area && currentUser){
+      if(etapa === n.area) return true; // pertence à etapa
+      if(isAdm && currentUser.area === n.area) return true; // admin do dept
+    }
+
+    // REGRA 5: Sem área e sem destinatário → notificação geral (todos veem exceto somenteOwners)
+    if(!n.area && !n.destinatario && !n.destinatarioEmail && !n.somenteOwners) return true;
+
     return false;
   });
 }
@@ -2320,6 +2355,83 @@ function carregarSnapshotDia(data){
   return db.ref('snapshots/' + data).once('value').then(snap => snap.val());
 }
 
+
+// ══════════════════════════════════════════════
+// RANKINGS DE ATRASO POR ETAPA
+// ══════════════════════════════════════════════
+function renderRelRankings(){
+  renderRankingEtapa('MIGO', 14, 'rel-rank-migo', 'migo');
+  renderRankingEtapa('MIRO', 21, 'rel-rank-miro', 'miro');
+}
+
+function renderRankingEtapa(etapa, limiarDias, elId, cssClass){
+  const el = document.getElementById(elId);
+  if(!el) return;
+
+  // Filtra NFs na etapa com dias em aberto acima do limiar
+  const nfsEtapa = nfs.filter(n =>
+    n.status !== 'Pago' &&
+    etapaAtual(n) === etapa &&
+    (diasAberto(n.emissao)||0) > limiarDias
+  );
+
+  if(!nfsEtapa.length){
+    el.innerHTML = '<div class="rel-empty">Nenhuma NF em ' + etapa + ' acima de ' + limiarDias + ' dias.</div>';
+    return;
+  }
+
+  // Agrupa por requisitante
+  const grupos = {};
+  nfsEtapa.forEach(n => {
+    const req = n.requisitante || 'Não identificado';
+    // Find departamento from funcionarios by requisitante name
+    const funcReq = funcionarios.find(f => f.nome === req || (f.nome1 && (f.nome1+' '+f.sobrenome).trim() === req));
+    const depto = funcReq ? (funcReq.area||'—') : '—';
+    if(!grupos[req]) grupos[req] = { req, depto, nfs:[], totalDias:0, maxDias:0 };
+    const dias = diasAberto(n.emissao)||0;
+    grupos[req].nfs.push(n);
+    grupos[req].totalDias += dias;
+    grupos[req].maxDias = Math.max(grupos[req].maxDias, dias);
+  });
+
+  const lista = Object.values(grupos)
+    .sort((a,b) => b.maxDias - a.maxDias || b.nfs.length - a.nfs.length);
+
+  const total = nfsEtapa.length;
+
+  // Header
+  const header = '<div class="rank-row" style="background:linear-gradient(to bottom,#f2f2f2,#e8e8e8);font-weight:700;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.4px">' +
+    '<span class="rank-pos">#</span>' +
+    '<span style="flex:1">Requisitante</span>' +
+    '<span style="width:130px">Departamento</span>' +
+    '<span style="width:70px;text-align:center">NFs</span>' +
+    '<span style="width:90px;text-align:center">Máx. Dias</span>' +
+    '<span style="width:90px;text-align:center">Média Dias</span>' +
+    '<span style="width:120px;text-align:center">% do Total</span>' +
+  '</div>';
+
+  el.innerHTML = header + lista.map((g, i) => {
+    const posClass = i===0?'top1':i===1?'top2':i===2?'top3':'';
+    const media    = Math.round(g.totalDias / g.nfs.length);
+    const pct      = total > 0 ? Math.round(g.nfs.length/total*100) : 0;
+    const posLabel = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'º';
+    return '<div class="rank-row">' +
+      '<span class="rank-pos ' + posClass + '">' + posLabel + '</span>' +
+      '<span style="flex:1;font-weight:700">' + g.req + '</span>' +
+      '<span style="width:130px;font-size:11px;color:var(--muted)">' + (g.depto||'—') + '</span>' +
+      '<span style="width:70px;text-align:center"><span class="rank-alert ' + cssClass + '">' + g.nfs.length + ' NF' + (g.nfs.length!==1?'s':'') + '</span></span>' +
+      '<span style="width:90px;text-align:center"><span class="' + (g.maxDias>=limiarDias?'dias-alerta':'dias-normal') + '">' + g.maxDias + 'd</span></span>' +
+      '<span style="width:90px;text-align:center">' + media + 'd</span>' +
+      '<span style="width:120px;text-align:center">' +
+        '<div style="background:#eee;border-radius:10px;height:8px;overflow:hidden">' +
+          '<div style="background:' + (cssClass==='migo'?'#6a1a75':'#e65100') + ';height:100%;width:' + pct + '%"></div>' +
+        '</div>' +
+        '<span style="font-size:10px;color:var(--muted)">' + pct + '%</span>' +
+      '</span>' +
+    '</div>';
+  }).join('');
+}
+
 // ── USUÁRIO ATUAL ──
 function popularUserSwitcher(){
   if(!_fbUser) return;
@@ -2348,8 +2460,25 @@ function trocarUsuario(){ popularUserSwitcher(); refresh(); }
 
 
 // ── EDITAR USUÁRIO ──
+function abrirNovoUsuario(){
+  if(_fbUser && !isOwner()){ showToast('Apenas os owners podem configurar usuários.',''); return; }
+  document.getElementById('edit-user-id').value    = '';
+  document.getElementById('edit-nome').value        = '';
+  document.getElementById('edit-sobrenome').value   = '';
+  document.getElementById('edit-email').value       = '';
+  document.getElementById('edit-sap').value         = '';
+  document.getElementById('edit-area').value        = '';
+  if(document.getElementById('edit-etapa')) document.getElementById('edit-etapa').value = '';
+  document.getElementById('edit-admin').checked     = false;
+  document.getElementById('edit-user-ov').querySelector('h3').textContent = '➕ Novo Usuário';
+  const mo = document.getElementById('edit-user-ov');
+  document.body.appendChild(mo);
+  mo.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
 function abrirEditarUsuario(id){
-  if(!isOwner()){ showToast('Apenas o administrador pode editar usuários.',''); return; }
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode editar usuários.',''); return; }
   const f = funcionarios.find(x=>x.id===id);
   if(!f) return;
   document.getElementById('edit-user-id').value    = id;
@@ -2358,6 +2487,7 @@ function abrirEditarUsuario(id){
   document.getElementById('edit-email').value       = f.email||'';
   document.getElementById('edit-sap').value         = f.usuarioSAP||'';
   document.getElementById('edit-area').value        = f.area||'';
+  document.getElementById('edit-etapa').value       = f.etapa||'';
   document.getElementById('edit-admin').checked     = !!f.admin;
   document.getElementById('edit-user-ov').classList.add('open');
 }
@@ -2365,24 +2495,29 @@ function abrirEditarUsuario(id){
 function closeEditUser(e){
   if(e && e.target !== document.getElementById('edit-user-ov')) return;
   document.getElementById('edit-user-ov').classList.remove('open');
+  document.body.style.overflow='';
 }
 
 function salvarEdicaoUsuario(){
-  const id        = parseFloat(document.getElementById('edit-user-id').value);
+  const idRaw     = document.getElementById('edit-user-id').value;
+  const id        = idRaw ? parseFloat(idRaw) : Date.now();
   const nome1     = document.getElementById('edit-nome').value.trim();
   const sobrenome = document.getElementById('edit-sobrenome').value.trim();
   const email     = document.getElementById('edit-email').value.trim().toLowerCase();
   const sap       = document.getElementById('edit-sap').value.trim().toUpperCase();
-  const area      = document.getElementById('edit-area').value;
+  const area      = document.getElementById('edit-area').value.trim();
+  const etapa     = document.getElementById('edit-etapa')?.value||'';
   const admin     = document.getElementById('edit-admin').checked;
   if(!nome1||!sobrenome){ showToast('Preencha nome e sobrenome.',''); return; }
   if(!area){ showToast('Selecione a área.',''); return; }
   if(!email){ showToast('Informe o e-mail.',''); return; }
   const nome = nome1 + ' ' + sobrenome;
-  const atualizado = {id, nome, nome1, sobrenome, area, email, usuarioSAP:sap, cargo:'', admin};
+  const atualizado = {id, nome, nome1, sobrenome, area, etapa, email, usuarioSAP:sap, cargo:'', admin};
   salvarFuncionarioFirebase(atualizado);
+  const isNovo = !document.getElementById('edit-user-id').value;
   closeEditUser();
-  showToast(nome + ' atualizado com sucesso!','success');
+  document.getElementById('edit-user-ov').querySelector('h3').textContent = '✏️ Editar Usuário';
+  showToast(nome + (isNovo?' cadastrado':' atualizado') + ' com sucesso!','success');
 }
 
 // ── CONFIGURAÇÕES ──
@@ -2390,22 +2525,35 @@ function renderCfgList(){
   const el=document.getElementById('cfg-list');
   if(!el) return;
   const count=document.getElementById('cfg-count');
-  if(!funcionarios.length){el.innerHTML='<div class="func-empty">Nenhum funcionário cadastrado.</div>';count.textContent='0 registros';return;}
+  if(!funcionarios.length){
+    el.innerHTML='<div class="func-empty" style="padding:30px;text-align:center">' +
+      (isOwner()||!_fbUser ? 
+        '<div style="font-size:13px;color:var(--muted)">Nenhum usuário configurado ainda.</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-top:6px">Clique em <strong>+ Novo Usuário</strong> para começar.</div>'
+        : '<div style="font-size:13px;color:var(--muted)">Nenhum usuário configurado.</div>') +
+    '</div>';
+    count.textContent='0 registros';
+    return;
+  }
   count.textContent=funcionarios.length+' registro'+(funcionarios.length!==1?'s':'');
   // Table header
   const header = `<div class="func-row" style="background:linear-gradient(to bottom,#f2f2f2,#e8e8e8);border-bottom:2px solid var(--border-dark);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">
     <span style="flex:1">Nome / E-mail</span>
-    <span style="width:110px">Área</span>
+    <span style="width:110px">Etapa</span>
+    <span style="width:120px">Departamento</span>
     <span style="width:60px">Perfil</span>
     <span style="width:120px">Ações</span>
   </div>`;
   el.innerHTML = header + funcionarios.map(f=>`
     <div class="func-row">
       <span style="flex:1;font-weight:700">${f.nome}<br><span style="font-size:10px;color:var(--muted);font-weight:400">${f.email||'sem e-mail'}</span></span>
-      <span style="width:110px"><span class="area-tag">${f.area}</span></span>
+      <span style="width:110px"><span class="area-tag">${f.etapa||'—'}</span></span>
+      <span style="width:120px;font-size:11px;color:var(--muted)">${f.area||'—'}</span>
       <span style="width:60px">${f.admin?'<span class="func-admin-tag">ADMIN</span>':'<span style="font-size:10px;color:var(--muted)">Usuário</span>'}</span>
-      <button class="sap-btn" onclick="abrirEditarUsuario(${f.id})" style="padding:3px 8px;font-size:11px;margin-right:4px">✏️ Editar</button>
-      <button class="func-del" onclick="deletarFuncionario(${f.id})" title="Remover">✕</button>
+      <span style="width:120px;display:flex;gap:4px">
+        ${isOwner()?'<button class="sap-btn" onclick="abrirEditarUsuario('+f.id+')" style="padding:3px 8px;font-size:11px">✏️ Editar</button>':''}
+        ${isOwner()?'<button class="func-del" onclick="deletarFuncionario('+f.id+')" title="Remover">✕</button>':''}
+      </span>
     </div>`).join('');
 }
 
@@ -2416,18 +2564,20 @@ function salvarFuncionario(){
   const admin       = document.getElementById('cfg-admin').checked;
   const usuarioSAP  = document.getElementById('cfg-sap').value.trim().toUpperCase();
   const emailFunc   = document.getElementById('cfg-email').value.trim().toLowerCase();
+  const etapa       = document.getElementById('cfg-etapa')?.value || '';
   if(!nome)     { showToast('Informe o nome do usuário.');return; }
   if(!sobrenome){ showToast('Informe o sobrenome do usuário.');return; }
-  if(!area)     { showToast('Selecione a área do usuário.');return; }
+  if(!area)     { showToast('Informe o departamento do usuário.');return; }
   if(!emailFunc){ showToast('Informe o e-mail do usuário.');return; }
   const nomeCompleto = nome + ' ' + sobrenome;
-  const novoFunc = {id:Date.now(), nome:nomeCompleto, nome1:nome, sobrenome, area, cargo:'', admin, usuarioSAP, email:emailFunc};
+  const novoFunc = {id:Date.now(), nome:nomeCompleto, nome1:nome, sobrenome, area, etapa, cargo:'', admin, usuarioSAP, email:emailFunc};
   salvarFuncionarioFirebase(novoFunc);
   document.getElementById('cfg-nome').value='';
   document.getElementById('cfg-sobrenome').value='';
   document.getElementById('cfg-area').value='';
   document.getElementById('cfg-sap').value='';
   document.getElementById('cfg-email').value='';
+  if(document.getElementById('cfg-etapa')) document.getElementById('cfg-etapa').value='';
   document.getElementById('cfg-admin').checked=false;
   showToast(`${nomeCompleto} cadastrado em ${area}!`,'success');
 }
@@ -2470,7 +2620,7 @@ function importarUsuarios(input){
         const nome       = String(row['Nome']||row['nome']||'').trim();
         const sobrenome  = String(row['Sobrenome']||row['sobrenome']||'').trim();
         const sapRaw     = String(row['Usuário SAP']||row['Usuario SAP']||row['usuarioSAP']||row['SAP']||'').trim().toUpperCase();
-        const areaRaw    = nrm(row['Área']||row['Area']||row['area']||'');
+        const areaRaw    = nrm(row['Departamento']||row['Área']||row['Area']||row['area']||row['Depto']||'');
         const adminRaw   = nrm(row['Admin (SIM/NAO)']||row['Admin']||row['admin']||'');
 
         if(!nome || !sobrenome){ erros++; return; }
@@ -2692,6 +2842,7 @@ const COLMAP = {
   requisitante:['requisitante','criador pedido compra','y'],
   requisitanteZ:['porfc','z'],
   deposito:    ['deposito','depósito','aa'],
+  centro:      ['centro','deposito centro','ab'],
 };
 
 // Constrói índice coluna→campo a partir dos headers reais do arquivo
@@ -2783,6 +2934,7 @@ function parseRow(r, i){
   const _reqZ           = gs('requisitanteZ'); // col Z
   const requisitante    = _reqY.toUpperCase() === 'PORFC' ? _reqZ : _reqY; // se Y=PORFC usar Z
   const deposito        = gs('deposito');       // col AA
+  const centro          = gs('centro');         // col AB
 
   const etapas = determineEtapas(_pcRaw, _pedMigoRaw, miro, statusMigo);
   const areas  = areasFromEtapas(etapas);
@@ -2790,7 +2942,7 @@ function parseRow(r, i){
   return {num,forn,val,status,pagto,statusF,eleg,venc,emissao,pc,
           criador,cfop,pedMigo,migo,statusMigo,miro,docPgto,
           formaPgto,condPgto,diasAtePgto,adiant,vlrRep,posDup,dadosAdic,
-          requisitante,deposito,
+          requisitante,deposito,centro,
           areas,etapas};
 }
 
@@ -2965,6 +3117,7 @@ function importFile(file){
             existing.dadosAdic    = parsed.dadosAdic;
             existing.requisitante = parsed.requisitante;
             existing.deposito     = parsed.deposito;
+            existing.centro      = parsed.centro;
             existing.atualizadoEm = horaStr;
             qtdAtual++;
             const changeDesc = changes.map(ch=>`${ch.campo}: "${ch.de}" → "${ch.para}"`).join(' | ');
@@ -3000,9 +3153,12 @@ function importFile(file){
           </span>
         </div>`).join('');
 
-      notifs.unshift({tipo:'success',ico:'📊',title:'Importação concluída',
+      const importNotif = {tipo:'success',ico:'📊',title:'Importação concluída',
         desc:`${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} sem alteração · ${qtdIgnorada} ignorada(s) — ${file.name}`,
-        nf:'',hora:'Agora',lida:false,area:null,destinatario:null});
+        nf:'',hora:'Agora',lida:false,area:null,destinatario:null,
+        somenteOwners: true};
+      notifs.unshift(importNotif);
+      salvarNotifFirebase(importNotif);
       salvarSnapshot({arquivo:file.name,qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada});
       const arqId = Date.now();
       const arqData = {id:arqId,filename:file.name,dataNome:parseDateFromFilename(file.name),importadoEm:new Date().toISOString(),importadoFmt:new Date().toLocaleString('pt-BR'),qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada,superseded:false,importadoPor:_fbUser?_fbUser.email:''};
