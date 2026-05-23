@@ -231,22 +231,22 @@ function fazerLogout(){ auth.signOut(); }
 
 // Cadastrar
 function cadastrar(){
-  const nome     = document.getElementById('f-nome').value.trim();
-  const sobre    = document.getElementById('f-sobrenome').value.trim();
-  const email    = document.getElementById('f-email').value.trim().toLowerCase();
-  const sap      = document.getElementById('f-sap').value.trim().toUpperCase();
-  const area     = document.getElementById('f-area').value;
-  const admin    = document.getElementById('f-admin').checked;
+  const nome  = document.getElementById('f-nome').value.trim();
+  const sobre = document.getElementById('f-sobrenome').value.trim();
+  const email = document.getElementById('f-email').value.trim().toLowerCase();
+  const sap   = document.getElementById('f-sap').value.trim().toUpperCase();
+  const area  = document.getElementById('f-area').value.trim();
+  const etapa = document.getElementById('f-etapa').value.trim();
+  const admin = document.getElementById('f-admin').checked;
 
-  if(!nome||!sobre){ showMsg('f-msg','Informe nome e sobrenome.'); return; }
-  if(!email){ showMsg('f-msg','Informe o e-mail.'); return; }
-  if(!area){ showMsg('f-msg','Informe o departamento.'); return; }
-  if(!etapa){ showMsg('f-msg','Selecione a etapa.'); return; }
+  if(!nome){ showMsg('f-msg','Informe o nome.'); return; }
+  if(!email || !email.includes('@')){ showMsg('f-msg','Informe um e-mail válido.'); return; }
 
-  const id = Date.now();
-  const func = {id, nome:nome+' '+sobre, nome1:nome, sobrenome:sobre, email, usuarioSAP:sap, area, etapa, cargo:'', admin};
+  const key = 'func_' + email.replace('@','_at_').replace(/\./g,'_').replace(/-/g,'_');
+  const id  = Date.now();
+  const func = {id, nome:(nome+' '+sobre).trim(), nome1:nome, sobrenome:sobre, email, usuarioSAP:sap, area, etapa, cargo:'', admin};
 
-  db.ref('funcionarios/func_'+id).set(func)
+  db.ref('funcionarios/'+key).set(func)
     .then(()=>{
       showMsg('f-msg', nome+' '+sobre+' cadastrado com sucesso!', 'ok');
       document.getElementById('f-nome').value='';
