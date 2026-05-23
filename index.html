@@ -353,7 +353,7 @@
 
 
   /* LOGIN */
-  .login-screen { position:fixed; inset:0; background:var(--sap-shell); display:flex; align-items:center; justify-content:center; z-index:999999; }
+  .login-screen { position:fixed; inset:0; background:var(--sap-shell); display:none; align-items:center; justify-content:center; z-index:999999; }
   .login-box { background:var(--white); border-radius:8px; padding:40px; width:360px; box-shadow:0 8px 32px rgba(0,0,0,.3); }
   .login-logo { text-align:center; margin-bottom:24px; }
   .login-logo .sap-box { font-size:18px; padding:8px 16px; display:inline-block; }
@@ -379,13 +379,13 @@
     padding:1px 5px; border-radius:3px; letter-spacing:.4px; }
 
   /* CONFIGURAÇÕES */
-  .cfg-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-  .cfg-form-card { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
+  .cfg-grid { display:flex; flex-direction:column; gap:16px; width:100%; min-height:200px; }
+  .cfg-form-card { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; min-height:100px; }
   .cfg-form-hdr { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:7px 12px; font-size:13px; font-weight:700; }
   .cfg-form-body { padding:14px; display:flex; flex-direction:column; gap:10px; }
   .cfg-field { display:flex; flex-direction:column; gap:3px; }
   .cfg-field label { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:.4px; }
-  .cfg-list-card { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
+  .cfg-list-card { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; width:100%; }
   .cfg-list-hdr { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:7px 12px; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:space-between; }
   .func-row { display:flex; align-items:center; gap:0; padding:6px 12px; border-bottom:1px solid var(--border); font-size:12px; }
   .func-row:last-child { border-bottom:none; }
@@ -826,8 +826,8 @@
           <span>Usuários Cadastrados</span>
           <div style="display:flex;align-items:center;gap:6px">
             <span id="cfg-count" style="font-size:11px;color:var(--muted);font-weight:400">0 registros</span>
-            <button class="sap-btn" onclick="baixarTemplate()">⬇ Template</button>
-            <button class="sap-btn primary" onclick="document.getElementById('cfg-import-input').click()">↑ Importar</button>
+            <button class="sap-btn" id="btn-cfg-template" onclick="baixarTemplate()">⬇ Template</button>
+            <button class="sap-btn primary" id="btn-cfg-import" onclick="document.getElementById('cfg-import-input').click()">↑ Importar</button>
             <input type="file" id="cfg-import-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarUsuarios(this)">
           </div>
         </div>
@@ -1194,7 +1194,7 @@ auth.onAuthStateChanged(user => {
     document.getElementById('user-display').textContent = user.email.split('@')[0].toUpperCase();
     iniciarApp(user);
   } else {
-    // Not logged in
+    // Not logged in — show login screen
     document.getElementById('login-screen').style.display = 'flex';
     const btn = document.getElementById('login-btn');
     btn.disabled = false; btn.textContent = 'Entrar';
@@ -1369,6 +1369,8 @@ function salvarArquivoFirebase(arq){
 }
 
 window.onload=()=>{
+  // Show login screen by default until Firebase auth resolves
+  document.getElementById('login-screen').style.display = 'flex';
   setupDrop();
   document.getElementById('excel-input').addEventListener('change',e=>{if(e.target.files[0])importFile(e.target.files[0]);});
   // Auth state handles app init
@@ -1389,7 +1391,7 @@ function showView(v,btn){
   if(btn)btn.classList.add('active');
   document.getElementById('page-title').textContent=vmap[v]||'';
   if(v==='notif'){markAllRead();}
-  if(v==='cfg'){renderCfgList();}
+  if(v==='cfg'){window.scrollTo(0,0);renderCfgList();}
   if(v==='historico'){renderHistorico();renderHistoricoKPIs();}
   if(v==='arquivos'){renderArquivos();}
   if(v==='relatorios'){renderRelatorios();}
@@ -2226,7 +2228,7 @@ function renderArquivos(){
 }
 
 function excluirArquivo(id){
-  if(!isOwner()){ showToast('Apenas o administrador pode excluir arquivos.',''); return; }
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode excluir arquivos.',''); return; }
   const lista = arquivosFirebase.length ? arquivosFirebase : carregarArquivos();
   const arq   = lista.find(a=>a.id===id);
   if(!arq) return;
@@ -2713,23 +2715,27 @@ function parseRow(r, i){
 
   const num        = gs('num') || `IMP${String(i+1).padStart(4,'0')}`;
   const forn       = gs('forn') || '—';
-  const vR         = g('val') || 0;
+  const vR         = g('val');
   const val = (()=>{
+    // vR can be a number (Excel native) or string "R$ 1.234,56"
+    if(vR === null || vR === undefined || vR === '') return 0;
+    // If already a number from Excel, use directly
+    if(typeof vR === 'number') return isNaN(vR) ? 0 : vR;
     const s = String(vR).trim();
     if(!s || s==='-' || s==='—') return 0;
-    // Remove currency symbol and spaces
-    let clean = s.replace(/R\$\s*/g,'').trim();
-    // Brazilian format: 1.234.567,89 → dots=thousands, comma=decimal
-    // Check if has comma (decimal separator in pt-BR)
+    // Remove R$, spaces, non-numeric except dot and comma
+    let clean = s.replace(/R\$\s*/gi,'').replace(/\s/g,'').trim();
+    // pt-BR: dots=thousands separator, comma=decimal
+    // Pattern: 1.234,56 or 1.234.567,89
     if(clean.includes(',')){
-      // Remove thousand separators (dots before comma) then replace comma with dot
       clean = clean.replace(/\./g,'').replace(',','.');
     } else {
-      // No comma: might be integer like 1234 or American 1234.56
-      clean = clean.replace(/[^0-9.]/g,'');
+      // No comma — remove non-numeric except last dot
+      const parts = clean.replace(/[^0-9.]/g,'').split('.');
+      clean = parts.length > 1 ? parts.slice(0,-1).join('') + '.' + parts[parts.length-1] : parts[0];
     }
     const n = parseFloat(clean);
-    return isNaN(n) ? 0 : n;
+    return isNaN(n) ? 0 : Math.round(n * 100) / 100; // round to 2 decimals
   })();
   const pagto      = gs('pagto');
   const statusF    = gs('statusF');
@@ -2799,7 +2805,7 @@ function detectChanges(existing, incoming){
 }
 
 function limparFirebase(){
-  if(!isOwner()){ showToast('Apenas o administrador pode limpar o Firebase.',''); return; }
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar o Firebase.',''); return; }
   showToast('Limpando Firebase...','')
   Promise.all([
     db.ref('nfs').remove(),
@@ -2817,7 +2823,7 @@ function limparFirebase(){
 }
 
 function limparDados(){
-  if(!isOwner()){ showToast('Apenas o administrador pode limpar os dados.',''); return; }
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar os dados.',''); return; }
   nfs = [];
   try {
     localStorage.removeItem(STORAGE_NFS);
@@ -2836,12 +2842,13 @@ function limparDados(){
 }
 
 function importFile(file){
-  if(!isOwner()){ showToast('Apenas o administrador pode importar arquivos.',''); return; }
+  // Allow import in local/preview mode (no Firebase) OR when owner
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode importar arquivos.',''); return; }
   const r=new FileReader();
   r.onload=e=>{
     try{
       // Read as array-of-arrays with cellDates — guaranteed alignment
-      const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+      const wb=XLSX.read(e.target.result,{type:'binary'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const nrm2 = v => String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
       const allRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
@@ -2872,7 +2879,6 @@ function importFile(file){
         if(_colIdx[field]===undefined) _colIdx[field] = pos;
       });
 
-      // Amostra dos primeiros valores para diagnóstico
       const sample = dataRows[0]||[];
 
 
