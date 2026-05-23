@@ -915,20 +915,22 @@
         <div class="new-msg-wrap">
           <div class="new-msg-row">
             <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
-              <select class="sap-sel" id="msg-area" onchange="atualizarFuncionarios()" style="width:130px">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.4px">Sua Área</div>
+              <div id="msg-area-display" style="font-size:12px;font-weight:700;color:var(--sap-blue);background:var(--sap-blue-light);border:1px solid #a4caee;padding:5px 8px;border-radius:var(--r);width:130px;text-align:center">—</div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.4px;margin-top:4px">Etapa Destinatária</div>
+              <select class="sap-sel" id="msg-area-dest" onchange="atualizarFuncionarios()" style="width:130px">
+                <option value="">Selecionar...</option>
                 <option>Suprimentos</option><option>MIGO</option><option>MIRO</option><option>CAP</option>
               </select>
-              <select class="sap-sel" id="msg-func" style="width:130px">
+              <select class="sap-sel" id="msg-func" style="width:130px;margin-top:2px">
                 <option value="">— Funcionário —</option>
               </select>
             </div>
             <textarea class="msg-ta" id="msg-ta" placeholder="Descreva a ocorrência, ajuste necessário ou confirmação..."></textarea>
           </div>
-          <div class="new-msg-actions" style="display:flex;align-items:center;justify-content:space-between">
-            <div style="display:flex;gap:6px">
-              <button class="sap-btn" onclick="gerarEmail()">✉ Gerar E-mail</button>
-              <button class="sap-btn primary" onclick="enviarMsg()">↑ Enviar Mensagem</button>
-            </div>
+          <div class="new-msg-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
+            <button class="sap-btn" onclick="gerarEmail()">✉ Gerar E-mail</button>
+            <button class="sap-btn primary" onclick="enviarMsg()">↑ Enviar Mensagem</button>
             <button class="modal-close" onclick="document.getElementById('modal-ov').classList.remove('open');document.body.style.overflow='';currentNF=null;" title="Fechar" style="width:28px;height:28px;font-size:14px">✕</button>
           </div>
         </div>
@@ -1756,7 +1758,8 @@ function enviarMsg(){
     destinatario: func||null,
     destinatarioEmail: funcEmail||null,
     remetente: currentUser?currentUser.nome:'',
-    remetenteArea: area};
+    remetenteArea: area,
+    etapaDest: areaDest||null};
   notifs.unshift(novaNotif);
   salvarNotifFirebase(novaNotif);
   document.getElementById('msg-ta').value='';
@@ -1825,13 +1828,15 @@ function notifsDoUsuario(){
     // REGRA 3: Direcionada por nome → só esse usuário
     if(n.destinatario && currentUser) return n.destinatario===currentUser.nome;
 
-    // REGRA 4: Sem destinatário específico mas com etapa/área
-    //   → Admin da etapa recebe todas as da sua etapa
-    //   → Usuário comum recebe apenas as da sua etapa
+    // REGRA 4: Notificação para uma etapa sem destinatário específico
+    // → Todos da etapa recebem
+    // → Admin da mesma etapa também recebe
     if(n.area && currentUser){
-      if(etapa === n.area) return true; // pertence à etapa
-      if(isAdm && currentUser.area === n.area) return true; // admin do dept
+      if(etapa === n.area) return true;
+      if(isAdm && etapa === n.area) return true;
     }
+    // REGRA 4b: Admin recebe notificações da sua etapa mesmo sem ser o destinatário
+    if(n.etapaDest && currentUser && isAdm && etapa === n.etapaDest && !n.destinatarioEmail) return true;
 
     // REGRA 5: Sem área e sem destinatário → notificação geral (todos veem exceto somenteOwners)
     if(!n.area && !n.destinatario && !n.destinatarioEmail && !n.somenteOwners) return true;
@@ -2664,17 +2669,24 @@ function deletarFuncionario(id){
 }
 
 function atualizarFuncionarios(){
-  // Show logged user's area
+  // Show logged user's etapa
   const display = document.getElementById('msg-area-display');
-  if(display) display.textContent = currentUser ? currentUser.area : '—';
+  if(display) display.textContent = currentUser ? (currentUser.etapa||currentUser.area||'—') : '—';
 
-  // Filter employees by destination area
-  const areaDest = (document.getElementById('msg-area-dest')?.value)||'';
+  const areaDest = (document.getElementById('msg-area-dest')?.value)||(document.getElementById('msg-area')?.value)||'';
   const sel = document.getElementById('msg-func');
   if(!sel) return;
-  const lista = areaDest ? funcionarios.filter(f=>f.area===areaDest) : [];
-  sel.innerHTML = '<option value="">— Funcionário —</option>' +
-    lista.map(f=>`<option value="${f.nome}" data-email="${f.email||''}">${f.nome}</option>`).join('');
+  if(!areaDest){ sel.innerHTML='<option value="">— Funcionário —</option>'; return; }
+
+  // Fetch from Firebase funcionarios filtered by etapa
+  db.ref('funcionarios').once('value').then(snap=>{
+    const data = snap.val()||{};
+    const lista = Object.values(data)
+      .filter(f => f && f.email && f.nome && (f.etapa||'') === areaDest)
+      .sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+    sel.innerHTML = '<option value="">— Funcionário —</option>' +
+      lista.map(f=>`<option value="${f.nome}" data-email="${f.email||''}">${f.nome}</option>`).join('');
+  });
 }
 
 function abrirNotif(id, el){
