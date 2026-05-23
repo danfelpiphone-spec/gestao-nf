@@ -610,7 +610,7 @@
       <button class="sort-btn" id="nf-sort-val-desc"  onclick="setNFSort('val','desc')">Valor ↓</button>
       <button class="sort-btn" id="nf-sort-val-asc"   onclick="setNFSort('val','asc')">Valor ↑</button>
       <div class="tbar-sep"></div>
-      <button class="sap-btn primary" onclick="document.getElementById('excel-input').click()">↑ Importar Excel</button>
+      <button class="sap-btn primary" id="btn-import-nf" onclick="document.getElementById('excel-input').click()">↑ Importar Excel</button>
       <button class="sap-btn" onclick="exportarNFs()" style="color:var(--green);border-color:var(--green)">⬇ Exportar Excel</button>
       <div class="tbar-sp"></div>
       <span style="font-size:11px;color:var(--muted)" id="nf-cnt">0 registros</span>
@@ -1209,19 +1209,24 @@ let _fbUnsubNotifs  = null;
 let _fbUnsubFuncs   = null;
 let _fbUser         = null;
 let _importing      = false;
-const OWNER_EMAIL   = 'danfelpiphone@gmail.com';
+const OWNER_EMAILS  = ['danfelpiphone@gmail.com', 'danfelpiphone@gamil.com', 'daniel.jorge@mills.com.br'];
 
 function iniciarApp(user){
   _fbUser = user;
 
   // Sync NFs
   if(_fbUnsubNFs) _fbUnsubNFs();
-  // Version-based reload: when nfsVersion changes, all users reload
+  // Version-based reload: only reload when nfsVersion changes
+  let _lastNfsVersion = 0;
   db.ref('meta').on('value', snap => {
     const meta = snap.val() || {};
-    if(meta.importing) {
+    if(meta.importing){
       if(!_importing) showToast('Importação em andamento, aguarde...','');
-    } else if(!_importing) {
+      return;
+    }
+    // Only reload if nfsVersion changed (new import completed)
+    if(!_importing && meta.nfsVersion && meta.nfsVersion !== _lastNfsVersion){
+      _lastNfsVersion = meta.nfsVersion;
       carregarNFsDoFirebase();
     }
   });
@@ -1281,8 +1286,8 @@ function iniciarApp(user){
 
 function aplicarPermissoes(){
   const owner = isOwner();
-  // Import Excel button
-  const btnImport = document.querySelector('.sap-btn.primary[onclick*="excel-input"]');
+  // Import Excel button (NF tab only — cfg import always visible to owner)
+  const btnImport = document.getElementById('btn-import-nf');
   if(btnImport) btnImport.style.display = owner ? '' : 'none';
   // Drop zone — disable for non-owners but keep visible
   const dz = document.getElementById('drop-zone');
@@ -1299,7 +1304,9 @@ function aplicarPermissoes(){
 }
 
 function isOwner(){
-  return _fbUser && _fbUser.email.toLowerCase() === OWNER_EMAIL.toLowerCase();
+  if(!_fbUser) return false;
+  const email = _fbUser.email.toLowerCase();
+  return OWNER_EMAILS.some(o => email === o.toLowerCase());
 }
 
 function carregarNFsDoFirebase(){
@@ -2980,20 +2987,23 @@ function importFile(file){
       db.ref('arquivos/'+arqId).set(arqData);
       refresh();
       showToast('Salvando no Firebase... aguarde.','');
-      // Delete old data first to avoid duplicates, then save fresh
-      // Save to temp path first, then swap (atomic protection)
       showToast('Salvando dados... não feche a página.','');
-      salvarTodasNFsFirebase().then(() => {
-        // Only after ALL data is saved, clear old and confirm
-        _importing = false;
-        db.ref('meta').update({importing: false, nfsVersion: Date.now()});
-        showToast('Dados salvos! Todos os usuários foram atualizados.','success');
-        refresh();
-      }).catch(err => {
-        _importing = false;
-        db.ref('meta').update({importing: false});
-        showToast('Erro ao salvar no Firebase: ' + err.message, '');
-      });
+      // Step 1: Delete all old NFs to prevent duplicates
+      db.ref('nfs').remove()
+        .then(() => salvarTodasNFsFirebase())
+        .then(() => {
+          _importing = false;
+          const version = Date.now();
+          _lastNfsVersion = version;
+          db.ref('meta').update({importing: false, nfsVersion: version});
+          showToast('Dados salvos! Todos os usuários foram atualizados.','success');
+          refresh();
+        })
+        .catch(err => {
+          _importing = false;
+          db.ref('meta').update({importing: false});
+          showToast('Erro ao salvar: ' + err.message,'');
+        });
 
 
       showToast(`Importação: ${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} inalterada(s) · ${qtdIgnorada} ignorada(s).`,'success');
