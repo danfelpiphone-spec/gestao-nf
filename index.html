@@ -168,7 +168,7 @@
   .message.area-Suprimentos { border-left-color: #107e3e; }
   .message.area-MIRO        { border-left-color: #e76500; }
   .message.area-MIGO        { border-left-color: #6a1a75; }
-  .message.area-CAP         { border-left-color: #bb0000; }
+  .message.area-FIN         { border-left-color: #bb0000; }
   .msg-head { display:flex; align-items:center; gap:7px; margin-bottom:3px; }
   .msg-area-tag { font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; background:var(--sap-blue-light); color:var(--sap-blue-dark); border:1px solid #a4caee; }
   .msg-time { font-size:10px; color:var(--muted); margin-left:auto; }
@@ -282,6 +282,25 @@
   .period-clear { font-size:11px; color:var(--muted); cursor:pointer; text-decoration:underline; }
   .period-clear:hover { color:var(--red); }
 
+
+  /* SLA PANEL */
+  .sla-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px; padding:14px; }
+  .sla-card { background:#f9fbff; border:1px solid var(--border); border-radius:var(--r); padding:14px; text-align:center; }
+  .sla-card-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-bottom:10px; }
+  .sla-gauge-wrap { position:relative; width:120px; height:60px; margin:0 auto 10px; overflow:hidden; }
+  .sla-gauge-bg { width:120px; height:60px; border-radius:60px 60px 0 0; background:#eee; position:absolute; top:0; }
+  .sla-gauge-fill { width:120px; height:60px; border-radius:60px 60px 0 0; position:absolute; top:0; transform-origin:center bottom; transition:transform .6s ease; }
+  .sla-gauge-pct { position:absolute; bottom:2px; left:50%; transform:translateX(-50%); font-size:16px; font-weight:700; }
+  .sla-bar-wrap { margin:8px 0; }
+  .sla-bar-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:11px; }
+  .sla-bar-label { width:60px; text-align:right; color:var(--muted); flex-shrink:0; }
+  .sla-bar-track { flex:1; background:#eee; border-radius:10px; height:10px; overflow:hidden; }
+  .sla-bar-inner { height:100%; border-radius:10px; transition:width .4s; }
+  .sla-bar-val { width:40px; font-size:10px; color:var(--muted); }
+  .sla-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:12px 14px; border-top:1px solid var(--border); }
+  .sla-sum-box { text-align:center; padding:8px; border-radius:var(--r); }
+  .sla-sum-num { font-size:20px; font-weight:700; }
+  .sla-sum-lbl { font-size:10px; color:var(--muted); margin-top:2px; }
 
   /* RANKING ATRASOS */
   .rank-row { display:flex; align-items:center; gap:10px; padding:8px 14px; border-bottom:1px solid var(--border); font-size:12px; }
@@ -458,9 +477,9 @@
     <span class="shell-app">GestãoNF</span>
   </div>
   <button class="snav-btn active" onclick="showView('dashboard',this)">Dashboard</button>
-  <button class="snav-btn" onclick="showView('nfs',this)">Notas Fiscais</button>
+  <button class="snav-btn" onclick="showView('nfs',this)">📄 NFs Pendentes</button>
   <button class="snav-btn" onclick="showView('notif',this)">Notificações <span class="nbadge" id="nbadge">3</span></button>
-  <button class="snav-btn" onclick="showView('historico',this)">🗂 Histórico</button>
+  <button class="snav-btn" onclick="showView('historico',this)">💰 Pagamentos</button>
   <button class="snav-btn" onclick="showView('relatorios',this)">📊 Relatórios</button>
   <button class="snav-btn" onclick="showView('arquivos',this)">📁 Arquivos</button>
   <button class="snav-btn" onclick="showView('cfg',this)">⚙ Configurações</button>
@@ -511,7 +530,7 @@
       </label>
       <div style="display:flex;gap:8px">
         <button class="sap-btn" onclick="limparFirebase()" style="color:var(--red);border-color:var(--red)">🔥 Limpar Firebase</button>
-        <button class="sap-btn" onclick="limparDados()" style="color:var(--red);border-color:var(--red)">🗑 Limpar dados locais</button>
+        <button class="sap-btn" onclick="limparDados()" style="color:var(--red);border-color:var(--red)">🗑 Limpar Dados Locais</button>
       </div>
     </div>
 
@@ -529,10 +548,10 @@
         <div class="etapa-strip-lbl" style="color:var(--sap-blue)">Resumo por Etapa</div>
         <div id="es-resumo-body" style="margin-top:6px"></div>
       </div>
-      <div class="etapa-strip-card s"><div class="etapa-strip-lbl">Suprimentos</div><div class="etapa-strip-val" id="es-s">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
+      <div class="etapa-strip-card s"><div class="etapa-strip-lbl">SUP</div><div class="etapa-strip-val" id="es-s">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
       <div class="etapa-strip-card mi"><div class="etapa-strip-lbl">MIGO</div><div class="etapa-strip-val" id="es-mi">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
       <div class="etapa-strip-card mr"><div class="etapa-strip-lbl">MIRO</div><div class="etapa-strip-val" id="es-mr">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
-      <div class="etapa-strip-card c"><div class="etapa-strip-lbl">CAP</div><div class="etapa-strip-val" id="es-c">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
+      <div class="etapa-strip-card c"><div class="etapa-strip-lbl">FIN</div><div class="etapa-strip-val" id="es-c">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
     </div>
 
     <div class="sec-hdr">
@@ -596,23 +615,33 @@
     </div>
     <div class="tbar">
       <input class="sap-input" id="search-nf" placeholder="🔍  Buscar por NF ou fornecedor" style="width:210px" oninput="renderNFTable()">
-      <select class="sap-sel" id="f-status" onchange="renderNFTable()">
-        <option value="">Todos os Status</option>
-        <option>Pendente</option>
+      <input class="sap-input" id="search-pc" placeholder="🔍  Buscar por Pedido de Compra" style="width:210px" oninput="renderNFTable()">
+      <select class="sap-sel" id="f-pc" onchange="renderNFTable()" style="max-width:160px">
+        <option value="">Pedido de Compra</option>
+        <option value="com">Com Pedido</option>
+        <option value="sem">Sem Pedido</option>
       </select>
+<select id="f-status" style="display:none"><option value=""></option></select>
       <select class="sap-sel" id="f-area" onchange="renderNFTable()">
-        <option value="">Todas as Áreas</option>
-        <option>Suprimentos</option><option>MIGO</option><option>MIRO</option><option>CAP</option>
+        <option value="">Etapa</option>
+        <option>SUP</option><option>MIGO</option><option>MIRO</option><option>FIN</option>
       </select>
       <select class="sap-sel" id="f-criador" onchange="renderNFTable()" style="max-width:180px">
-        <option value="">Todos os Criadores</option>
+        <option value="">Comprador</option>
       </select>
       <select class="sap-sel" id="f-req" onchange="renderNFTable()" style="max-width:180px">
-        <option value="">Todos os Requisitantes</option>
+        <option value="">Requisitante</option>
       </select>
       <select class="sap-sel" id="f-dep" onchange="renderNFTable()" style="max-width:160px">
-        <option value="">Todos os Depósitos</option>
+        <option value="">Depósito</option>
       </select>
+      <select class="sap-sel" id="f-depto" onchange="renderNFTable()" style="max-width:160px">
+        <option value="">Departamento</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap">
+        <input type="checkbox" id="f-admin-only" onchange="renderNFTable()" style="width:13px;height:13px;cursor:pointer">
+        Admin
+      </label>
       <div class="tbar-sep"></div>
       <span style="font-size:11px;color:var(--muted)">Ordenar:</span>
       <button class="sort-btn" id="nf-sort-nome-az"  onclick="setNFSort('nome','az')">A→Z</button>
@@ -622,13 +651,15 @@
       <button class="sort-btn" id="nf-sort-val-desc"  onclick="setNFSort('val','desc')">Valor ↓</button>
       <button class="sort-btn" id="nf-sort-val-asc"   onclick="setNFSort('val','asc')">Valor ↑</button>
       <div class="tbar-sep"></div>
-      <button class="sap-btn primary" id="btn-import-nf" onclick="document.getElementById('excel-input').click()">↑ Importar Excel</button>
+      <button class="sap-btn" onclick="limparTodosFiltros()" style="color:var(--yellow);border-color:var(--yellow)">✕ Limpar Filtros</button>
+      <button class="sap-btn primary" id="btn-import-nf" onclick="document.getElementById('excel-input').click()" style="display:none">↑ Importar Excel</button>
       <button class="sap-btn" onclick="exportarNFs()" style="color:var(--green);border-color:var(--green)">⬇ Exportar Excel</button>
       <div class="tbar-sp"></div>
       <span style="font-size:11px;color:var(--muted)" id="nf-cnt">0 registros</span>
+      <span style="font-size:12px;font-weight:700;color:var(--sap-blue);background:var(--sap-blue-light);border:1px solid #a4caee;padding:3px 10px;border-radius:3px;margin-left:4px" id="nf-total-val" style="display:none"></span>
     </div>
     <div class="tbl-wrap" style="border-radius:0 0 4px 4px">
-      <table><thead><tr><th>Nº NF</th><th>Fornecedor</th><th>Pedido de Compra</th><th>Valor (BRL)</th><th>Emissão</th><th>Vencimento</th><th>Dias em Aberto</th><th>Status</th><th>Áreas Envolvidas</th><th>Msgs</th><th>Ações</th></tr></thead>
+      <table><thead><tr><th>Nº NF</th><th>Fornecedor</th><th>Pedido de Compra</th><th>Valor (BRL)</th><th>Emissão</th><th>Vencimento</th><th>Dias em Aberto</th><th>Status</th><th>Etapas do Processo</th><th>Msgs</th><th>Ações</th></tr></thead>
       <tbody id="nf-tbody"><tr><td colspan="11"><div class="empty"><div class="eico">📂</div><h3>Nenhuma NF carregada</h3><p>Use "Importar Excel" acima</p></div></td></tr></tbody></table>
     </div>
   </div>
@@ -721,6 +752,79 @@
     </div>
     <div class="rel-grid">
 
+
+      <!-- SLA: Painel de SLA por Etapa -->
+      <div class="rel-card rel-card-full">
+        <div class="rel-card-hdr">⏱ Painel de SLA por Etapa — Volumetria por Prazo de Emissão</div>
+        <div class="sla-summary" id="sla-summary" style="grid-template-columns:repeat(5,1fr)">
+          <div class="sla-sum-box" style="background:#e8f5e9">
+            <div class="sla-sum-num" style="color:#2e7d32" id="sla-cnt-0-7">—</div>
+            <div class="sla-sum-lbl">🟢 0–7 dias<br>SUP</div>
+          </div>
+          <div class="sla-sum-box" style="background:#fff8e1">
+            <div class="sla-sum-num" style="color:#f57f17" id="sla-cnt-8-14">—</div>
+            <div class="sla-sum-lbl">🟡 8–14 dias<br>MIGO</div>
+          </div>
+          <div class="sla-sum-box" style="background:#fff3e0">
+            <div class="sla-sum-num" style="color:#e65100" id="sla-cnt-15-21">—</div>
+            <div class="sla-sum-lbl">🟠 15–21 dias<br>MIRO</div>
+          </div>
+          <div class="sla-sum-box" style="background:#fce4ec">
+            <div class="sla-sum-num" style="color:#c62828" id="sla-cnt-22-30">—</div>
+            <div class="sla-sum-lbl">🔴 22–30 dias<br>FIN</div>
+          </div>
+          <div class="sla-sum-box" style="background:#eeeeee">
+            <div class="sla-sum-num" style="color:#424242" id="sla-cnt-30">—</div>
+            <div class="sla-sum-lbl">⚫ +30 dias<br>Fora do SLA</div>
+          </div>
+        </div>
+        <div class="sla-grid">
+          <!-- Gauge SUP -->
+          <div class="sla-card">
+            <div class="sla-card-title">🟢 SUP (0–7 dias)</div>
+            <div class="sla-gauge-wrap">
+              <div class="sla-gauge-bg"></div>
+              <div class="sla-gauge-fill" id="gauge-sup" style="background:#4caf50"></div>
+              <div class="sla-gauge-pct" id="gauge-sup-pct" style="color:#2e7d32">—</div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">dentro do prazo</div>
+            <div class="sla-bar-wrap" id="sla-bars-sup"></div>
+          </div>
+          <!-- Gauge MIGO -->
+          <div class="sla-card">
+            <div class="sla-card-title">🟡 MIGO (até 14 dias)</div>
+            <div class="sla-gauge-wrap">
+              <div class="sla-gauge-bg"></div>
+              <div class="sla-gauge-fill" id="gauge-migo" style="background:#ffc107"></div>
+              <div class="sla-gauge-pct" id="gauge-migo-pct" style="color:#f57f17">—</div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">dentro do prazo</div>
+            <div class="sla-bar-wrap" id="sla-bars-migo"></div>
+          </div>
+          <!-- Gauge MIRO -->
+          <div class="sla-card">
+            <div class="sla-card-title">🟠 MIRO (até 21 dias)</div>
+            <div class="sla-gauge-wrap">
+              <div class="sla-gauge-bg"></div>
+              <div class="sla-gauge-fill" id="gauge-miro" style="background:#ff9800"></div>
+              <div class="sla-gauge-pct" id="gauge-miro-pct" style="color:#e65100">—</div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">dentro do prazo</div>
+            <div class="sla-bar-wrap" id="sla-bars-miro"></div>
+          </div>
+          <!-- Gauge FIN -->
+          <div class="sla-card">
+            <div class="sla-card-title">🔴 FIN (22–30 dias)</div>
+            <div class="sla-gauge-wrap">
+              <div class="sla-gauge-bg"></div>
+              <div class="sla-gauge-fill" id="gauge-cap" style="background:#e53935"></div>
+              <div class="sla-gauge-pct" id="gauge-cap-pct" style="color:#c62828">—</div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">dentro do prazo</div>
+            <div class="sla-bar-wrap" id="sla-bars-cap"></div>
+          </div>
+        </div>
+      </div>
 
       <!-- R1: NFs por Etapa (snapshot atual) -->
       <div class="rel-card">
@@ -826,7 +930,7 @@
         <div>
           <div style="font-weight:700;color:#0854a0;margin-bottom:6px">⚙ 2. Configuração do perfil</div>
           Após o cadastro no Firebase, configure aqui:<br>
-          • <strong>Etapa</strong> — Suprimentos / MIGO / MIRO / CAP<br>
+          • <strong>Etapa</strong> — SUP / MIGO / MIRO / FIN<br>
           • <strong>Departamento</strong> — departamento do usuário<br>
           • <strong>Permissões</strong> — Admin ou Usuário
         </div>
@@ -881,7 +985,7 @@
         <select class="sap-sel" id="edit-area" style="width:100%">
           <option value="">Selecione...</option>
           <option>Suprimentos</option><option>MIGO</option>
-          <option>MIRO</option><option>CAP</option>
+          <option>MIRO</option><option>FIN</option>
         </select>
       </div>
       <div class="cfg-field" style="flex-direction:row;align-items:center;gap:8px">
@@ -920,7 +1024,7 @@
               <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.4px;margin-top:4px">Etapa Destinatária</div>
               <select class="sap-sel" id="msg-area-dest" onchange="atualizarFuncionarios()" style="width:130px">
                 <option value="">Selecionar...</option>
-                <option>Suprimentos</option><option>MIGO</option><option>MIRO</option><option>CAP</option>
+                <option>SUP</option><option>MIGO</option><option>MIRO</option><option>FIN</option>
               </select>
               <select class="sap-sel" id="msg-func" style="width:130px;margin-top:2px">
                 <option value="">— Funcionário —</option>
@@ -958,7 +1062,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const AREAS = ['Suprimentos','MIGO','MIRO','CAP'];
+const AREAS = ['SUP','MIGO','MIRO','FIN'];
 let nfs=[], currentNF=null, notifs=[];
 let dashSort = {campo:'nome', dir:'az'};
 let nfSort   = {campo:'', dir:''};
@@ -972,8 +1076,8 @@ let funcionarios = [
   {id:4, nome:'Ricardo Oliveira',    nome1:'Ricardo',     sobrenome:'Oliveira',  area:'Suprimentos', cargo:'', admin:true,  usuarioSAP:'ROLIVEIRA'},
   {id:5, nome:'Juliana Pereira',     nome1:'Juliana',     sobrenome:'Pereira',   area:'MIRO',        cargo:'', admin:true,  usuarioSAP:'JPEREIRA'},
   {id:6, nome:'Marcos Alves',        nome1:'Marcos',      sobrenome:'Alves',     area:'MIGO',        cargo:'', admin:true,  usuarioSAP:'MALVES'},
-  {id:7, nome:'Patrícia Costa',      nome1:'Patrícia',    sobrenome:'Costa',     area:'CAP',         cargo:'', admin:false, usuarioSAP:'PCOSTA'},
-  {id:8, nome:'Diego Ferreira',      nome1:'Diego',       sobrenome:'Ferreira',  area:'CAP',         cargo:'', admin:true,  usuarioSAP:'DFERREIRA'},
+  {id:7, nome:'Patrícia Costa',      nome1:'Patrícia',    sobrenome:'Costa',     area:'FIN',         cargo:'', admin:false, usuarioSAP:'PCOSTA'},
+  {id:8, nome:'Diego Ferreira',      nome1:'Diego',       sobrenome:'Ferreira',  area:'FIN',         cargo:'', admin:true,  usuarioSAP:'DFERREIRA'},
 ];
 let currentUser = null; // usuário logado
 
@@ -982,23 +1086,23 @@ const seed=[
   {id:1,isSeed:true,num:'000123',forn:'Metalúrgica São Paulo Ltda',val:48500,status:'Pendente',venc:'2026-01-28',emissao:'2026-01-10',pc:'4500123456',areas:['RTP','Suprimentos','MIRO'],
    msgs:[{area:'Suprimentos',txt:'PO #4500123456 aprovada. Aguardando MIGO para liberação.',hora:'08:30 — 18/01/2026'},
          {area:'MIRO',txt:'NF recebida, aguardando conferência de itens com RTP antes de lançar.',hora:'09:15 — 18/01/2026'}],
-   etapas:{RTP:'ok',Suprimentos:'ok',MIRO:'alerta',MIGO:'',CAP:''}},
-  {id:2,isSeed:true,num:'000456',forn:'Distribuidora Central Norte',val:12300.50,status:'Pago',venc:'2026-01-15',emissao:'2026-01-05',pc:'4500098712',areas:['MIGO','CAP'],
+   etapas:{RTP:'ok',SUP:'ok',MIRO:'alerta',MIGO:'',FIN:''}},
+  {id:2,isSeed:true,num:'000456',forn:'Distribuidora Central Norte',val:12300.50,status:'Pago',venc:'2026-01-15',emissao:'2026-01-05',pc:'4500098712',areas:['MIGO','FIN'],
    msgs:[{area:'MIGO',txt:'Mercadoria recebida e conferida. Lançado no sistema.',hora:'14:00 — 14/01/2026'},
-         {area:'CAP',txt:'Pagamento processado. NF quitada.',hora:'16:30 — 15/01/2026'}],
-   etapas:{RTP:'ok',Suprimentos:'ok',MIRO:'ok',MIGO:'ok',CAP:'ok'}},
-  {id:3,isSeed:true,num:'000789',forn:'TechParts Indústria S/A',val:97600,status:'Pendente',venc:'2026-01-30',emissao:'2026-01-12',pc:'4500201344',areas:['RTP','MIRO','CAP'],
+         {area:'FIN',txt:'Pagamento processado. NF quitada.',hora:'16:30 — 15/01/2026'}],
+   etapas:{RTP:'ok',SUP:'ok',MIRO:'ok',MIGO:'ok',FIN:'ok'}},
+  {id:3,isSeed:true,num:'000789',forn:'TechParts Indústria S/A',val:97600,status:'Pendente',venc:'2026-01-30',emissao:'2026-01-12',pc:'4500201344',areas:['RTP','MIRO','FIN'],
    msgs:[{area:'RTP',txt:'Divergência na quantidade de itens recebidos vs. NF. Abrindo ocorrência.',hora:'10:00 — 17/01/2026'},
          {area:'MIRO',txt:'Bloqueado. Aguardando resolução da divergência apontada por RTP.',hora:'11:20 — 17/01/2026'},
-         {area:'CAP',txt:'Pagamento suspenso até regularização.',hora:'11:45 — 17/01/2026'}],
-   etapas:{RTP:'alerta',Suprimentos:'ok',MIRO:'',MIGO:'',CAP:''}},
+         {area:'FIN',txt:'Pagamento suspenso até regularização.',hora:'11:45 — 17/01/2026'}],
+   etapas:{RTP:'alerta',SUP:'ok',MIRO:'',MIGO:'',FIN:''}},
   {id:4,isSeed:true,num:'000321',forn:'Logística Global Express',val:5800,status:'Pendente',venc:'2026-02-05',emissao:'2026-01-20',pc:'4500315678',areas:['Suprimentos','MIRO'],
-   msgs:[],etapas:{RTP:'ok',Suprimentos:'alerta',MIRO:'',MIGO:'',CAP:''}},
+   msgs:[],etapas:{RTP:'ok',SUP:'alerta',MIRO:'',MIGO:'',FIN:''}},
 ];
 const seedN=[
   {tipo:'warn',ico:'⚠',title:'Divergência em NF #000789',desc:'RTP apontou divergência de quantidade. Ação necessária em MIRO e CAP.',nf:'000789',hora:'Hoje, 11:45',lida:false,area:'RTP',destinatario:null},
   {tipo:'info',ico:'💬',title:'Nova mensagem em NF #000123',desc:'MIRO aguarda conferência de itens com RTP antes do lançamento.',nf:'000123',hora:'Hoje, 09:15',lida:false,area:'MIRO',destinatario:'Juliana Pereira'},
-  {tipo:'success',ico:'✅',title:'NF #000456 quitada',desc:'Pagamento processado com sucesso pelo CAP.',nf:'000456',hora:'Ontem, 16:30',lida:false,area:'CAP',destinatario:null},
+  {tipo:'success',ico:'✅',title:'NF #000456 quitada',desc:'Pagamento processado com sucesso pelo CAP.',nf:'000456',hora:'Ontem, 16:30',lida:false,area:'FIN',destinatario:null},
   {tipo:'info',ico:'📋',title:'NF #000321 aguarda MIRO',desc:'Suprimentos aguarda lançamento no MIRO.',nf:'000321',hora:'Ontem, 08:00',lida:true,area:'MIRO',destinatario:null},
 ];
 
@@ -1035,6 +1139,7 @@ function renderNfsFilter()   { renderNFTable(); }
 function exportarNFs(){
   // Re-apply same filter logic from renderNFTable to get current list
   const s      = document.getElementById('search-nf').value.toLowerCase();
+  const spc    = document.getElementById('search-pc')?.value.toLowerCase() || '';
   const sf     = document.getElementById('f-status').value;
   const af     = document.getElementById('f-area').value;
   const cf     = document.getElementById('f-criador').value;
@@ -1050,6 +1155,7 @@ function exportarNFs(){
     if(n.status === 'Pago') return false;
     if(!inPeriod(n.emissao, pn)) return false;
     if(s && !n.num.includes(s) && !n.forn.toLowerCase().includes(s)) return false;
+    if(spc && !(n.pc||'').toLowerCase().includes(spc)) return false;
     if(sf && n.status !== sf) return false;
     if(af && etapaAtual(n) !== af) return false;
     if(cf && (n.criador||'') !== cf) return false;
@@ -1117,6 +1223,65 @@ function exportarNFs(){
   const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
   XLSX.writeFile(wb, 'GestaoNF_Export_' + hoje + '.xlsx');
   showToast(list.length + ' NFs exportadas com sucesso!', 'success');
+}
+
+function limparTodosFiltros(){
+  // Emissão
+  const de  = document.getElementById('nfs-dt-de');
+  const ate = document.getElementById('nfs-dt-ate');
+  if(de)  de.value  = '';
+  if(ate) ate.value = '';
+  // Vencimento
+  const vde  = document.getElementById('nfs-venc-de');
+  const vate = document.getElementById('nfs-venc-ate');
+  if(vde)  vde.value  = '';
+  if(vate) vate.value = '';
+  // Dias em aberto
+  const mn = document.getElementById('nfs-dias-min');
+  const mx = document.getElementById('nfs-dias-max');
+  if(mn) mn.value = '';
+  if(mx) mx.value = '';
+  // Busca e selects
+  const search = document.getElementById('search-nf');
+  if(search) search.value = '';
+  const searchPc = document.getElementById('search-pc');
+  if(searchPc) searchPc.value = '';
+  const status = document.getElementById('f-status');
+  if(status) status.value = '';
+  const area = document.getElementById('f-area');
+  if(area) area.value = '';
+  const criador = document.getElementById('f-criador');
+  if(criador) criador.value = '';
+  const req = document.getElementById('f-req');
+  if(req) req.value = '';
+  const dep = document.getElementById('f-dep');
+  if(dep) dep.value = '';
+  const pc = document.getElementById('f-pc');
+  if(pc) pc.value = '';
+  const depto = document.getElementById('f-depto');
+  if(depto) depto.value = '';
+  const adminOnly = document.getElementById('f-admin-only');
+  if(adminOnly) adminOnly.checked = false;
+  // Reset sort
+  nfSort = {campo:'', dir:''};
+  ['nome-az','nome-za','dias-desc','dias-asc','val-desc','val-asc'].forEach(k=>{
+    const el = document.getElementById('nf-sort-'+k);
+    if(el) el.classList.remove('active');
+  });
+  renderNFTable();
+  showToast('Filtros limpos!','success');
+}
+
+function limparTodosFiltros(){
+  ['nfs-dt-de','nfs-dt-ate','nfs-venc-de','nfs-venc-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['nfs-dias-min','nfs-dias-max'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['search-nf','search-pc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-status','f-area','f-criador','f-req','f-dep','f-depto','f-pc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const adminOnly=document.getElementById('f-admin-only');if(adminOnly)adminOnly.checked=false;
+  nfSort={campo:'',dir:''};
+  ['nome-az','nome-za','dias-desc','dias-asc','val-desc','val-asc'].forEach(k=>{const el=document.getElementById('nf-sort-'+k);if(el)el.classList.remove('active');});
+  renderNFTable();
+  showToast('Filtros limpos!','success');
 }
 
 function limparVenc(){
@@ -1307,27 +1472,48 @@ function iniciarApp(user){
 
 function aplicarPermissoes(){
   const owner = isOwner();
-  // Import Excel button (NF tab only — cfg import always visible to owner)
+
+  // Import Excel button (NF tab — hidden for all, import is via Dashboard)
   const btnImport = document.getElementById('btn-import-nf');
-  if(btnImport) btnImport.style.display = owner ? '' : 'none';
-  // Drop zone — disable for non-owners but keep visible
+  if(btnImport) btnImport.style.display = 'none';
+
+  // Drop zone — visible to all, enabled only for owners
   const dz = document.getElementById('drop-zone');
-  if(dz){ dz.style.pointerEvents = owner ? '' : 'none'; dz.style.opacity = owner ? '' : '0.5'; dz.title = owner ? '' : 'Apenas o administrador pode importar'; }
-  // Limpar Firebase button
+  if(dz){
+    dz.style.pointerEvents = owner ? '' : 'none';
+    dz.style.opacity       = owner ? '' : '0.5';
+    dz.title               = owner ? '' : 'Apenas o administrador pode importar';
+    dz.style.cursor        = owner ? 'pointer' : 'not-allowed';
+  }
+
+  // Limpar Firebase — visível a todos, habilitado só para owners
   const btnFb = document.querySelector('[onclick="limparFirebase()"]');
-  if(btnFb) btnFb.style.display = owner ? '' : 'none';
-  // Limpar dados locais button
+  if(btnFb){
+    btnFb.style.display  = '';
+    btnFb.disabled       = !owner;
+    btnFb.style.opacity  = owner ? '' : '0.5';
+    btnFb.style.cursor   = owner ? '' : 'not-allowed';
+    btnFb.title          = owner ? '' : 'Apenas o administrador pode limpar o Firebase';
+  }
+
+  // Limpar dados locais — visível a todos, habilitado só para owners
   const btnLocal = document.querySelector('[onclick="limparDados()"]');
-  if(btnLocal) btnLocal.style.display = owner ? '' : 'none';
-  // Modo Teste checkbox
+  if(btnLocal){
+    btnLocal.style.display = '';
+    btnLocal.disabled      = !owner;
+    btnLocal.style.opacity = owner ? '' : '0.5';
+    btnLocal.style.cursor  = owner ? '' : 'not-allowed';
+    btnLocal.title         = owner ? '' : 'Apenas o administrador pode limpar os dados';
+  }
+
+  // Modo Teste — visível só para owners
   const modoTeste = document.getElementById('modo-teste');
   if(modoTeste) modoTeste.parentElement.style.display = owner ? '' : 'none';
 }
 
 function isOwner(){
   if(!_fbUser) return false;
-  const email = _fbUser.email.toLowerCase();
-  return OWNER_EMAILS.some(o => email === o.toLowerCase());
+  return OWNER_EMAILS.some(o => _fbUser.email.toLowerCase() === o.toLowerCase());
 }
 
 function carregarNFsDoFirebase(){
@@ -1404,7 +1590,7 @@ function refresh(){
   b.textContent=u||''; b.style.display=u?'':'none';
 }
 
-const vmap={dashboard:'Dashboard — Controle de Notas Fiscais',nfs:'Notas Fiscais',notif:'Central de Notificações',historico:'Histórico — Notas Fiscais Pagas',relatorios:'Relatórios',arquivos:'Arquivos — Gestão de Importações',cfg:'Configurações — Usuários e Permissões'};
+const vmap={dashboard:'Dashboard — Controle de Notas Fiscais',nfs:'NFs Pendentes',notif:'Central de Notificações',historico:'Pagamentos — Notas Fiscais Pagas',relatorios:'Relatórios',arquivos:'Arquivos — Gestão de Importações',cfg:'Configurações — Usuários e Permissões'};
 function showView(v,btn){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.snav-btn').forEach(el=>el.classList.remove('active'));
@@ -1415,7 +1601,7 @@ function showView(v,btn){
   if(v==='cfg'){window.scrollTo(0,0);renderCfgList();}
   if(v==='historico'){renderHistorico();renderHistoricoKPIs();}
   if(v==='arquivos'){renderArquivos();}
-  if(v==='relatorios'){renderRelatorios();renderRelRankings();}
+  if(v==='relatorios'){renderRelatorios();renderRelRankings();renderSLA();}
 }
 
 function updateStats(){
@@ -1458,21 +1644,28 @@ function diasHTML(emissao){
 }
 
 function areasTagsHTML(nf){
-  const et = nf.etapas || {};
-  const dias = diasAberto(nf.emissao);
+  // Normalize etapas: map old key 'Suprimentos' → 'SUP'
+  const raw = nf.etapas || {};
+  const et  = {};
+  Object.entries(raw).forEach(([k,v])=>{
+    const nk = k==='Suprimentos'?'SUP':k==='CAP'?'FIN':k;
+    et[nk] = v;
+  });
+  const dias    = diasAberto(nf.emissao);
   const vencida = dias !== null && dias >= 25;
   return AREAS.filter(a => et[a] !== undefined && et[a] !== '').map(a => {
     const st = et[a];
-    if(st === 'ok')     return `<span class="area-tag-ok">${a}</span>`;
-    if(st === 'alerta') return `<span class="area-tag-alerta${vencida?' piscando':''}">${a}</span>`;
-
-    return `<span class="area-tag-none">${a}</span>`;
+    if(st === 'ok')     return '<span class="area-tag-ok">'+a+'</span>';
+    if(st === 'alerta') return '<span class="area-tag-alerta'+(vencida?' piscando':'')+'">'+a+'</span>';
+    return '<span class="area-tag-none">'+a+'</span>';
   }).join('');
 }
 
 // Retorna a etapa atual (alerta) de uma NF
 function etapaAtual(n){
-  const et = n.etapas || {};
+  const raw = n.etapas || {};
+  const et  = {};
+  Object.entries(raw).forEach(([k,v])=>{ const nk=k==='Suprimentos'?'SUP':k==='CAP'?'FIN':k; et[nk]=v; });
   for(const a of AREAS){
     if(et[a] === 'alerta') return a;
   }
@@ -1483,9 +1676,37 @@ function etapaAtual(n){
 function popularCriadores(){
   const sel = document.getElementById('f-criador');
   const cur = sel.value;
-  const lista = [...new Set(nfs.map(n=>n.criador||'').filter(Boolean))].sort();
-  sel.innerHTML = '<option value="">Todos os Criadores</option>' +
+  const pendentes = nfs.filter(n=>n.status!=='Pago');
+  const lista = [...new Set(pendentes.map(n=>n.criador||'').filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Comprador</option>' +
     lista.map(cr=>`<option${cr===cur?' selected':''}>${cr}</option>`).join('');
+
+  // Populate Requisitantes
+  const reqSel = document.getElementById('f-req');
+  if(reqSel){
+    const curReq = reqSel.value;
+    const reqs = [...new Set(pendentes.map(n=>n.requisitante||'').filter(Boolean))].sort();
+    reqSel.innerHTML = '<option value="">Requisitante</option>' +
+      reqs.map(r=>`<option${r===curReq?' selected':''}>${r}</option>`).join('');
+  }
+
+  // Populate Depositos
+  const depSel = document.getElementById('f-dep');
+  if(depSel){
+    const curDep = depSel.value;
+    const deps = [...new Set(pendentes.map(n=>n.deposito||'').filter(Boolean))].sort();
+    depSel.innerHTML = '<option value="">Depósito</option>' +
+      deps.map(d=>`<option${d===curDep?' selected':''}>${d}</option>`).join('');
+  }
+
+  // Populate Departamento from funcionarios
+  const deptoSel = document.getElementById('f-depto');
+  if(deptoSel){
+    const curDepto = deptoSel.value;
+    const deptos = [...new Set(funcionarios.map(f=>f.area||'').filter(Boolean))].sort();
+    deptoSel.innerHTML = '<option value="">Departamento</option>' +
+      deptos.map(d=>`<option${d===curDepto?' selected':''}>${d}</option>`).join('');
+  }
 }
 
 function badge(s){
@@ -1551,7 +1772,7 @@ function setDashSort(campo, dir){
 function updateEtapasStrip(){
   const pendentes = nfs.filter(n=>n.status!=='Pago');
   const total     = pendentes.length;
-  const ids = {Suprimentos:'es-s', MIGO:'es-mi', MIRO:'es-mr', CAP:'es-c'};
+  const ids = {SUP:'es-s', MIGO:'es-mi', MIRO:'es-mr', FIN:'es-c'};
   const counts = {};
   AREAS.forEach(a=>{
     const cnt = pendentes.filter(n=>etapaAtual(n)===a).length;
@@ -1560,7 +1781,7 @@ function updateEtapasStrip(){
     if(el) el.textContent = cnt;
   });
   // Render summary card
-  const colors = {CAP:'#bb0000', MIRO:'#e76500', MIGO:'#6a1a75', Suprimentos:'#0854a0'};
+  const colors = {FIN:'#bb0000', MIRO:'#e76500', MIGO:'#6a1a75', Suprimentos:'#0854a0'};
   const resumo = document.getElementById('es-resumo-body');
   if(resumo){
     resumo.innerHTML = AREAS.map(a=>{
@@ -1636,8 +1857,12 @@ function renderNFTable(){
   const sf = document.getElementById('f-status').value;
   const af = document.getElementById('f-area').value;
   const cf  = document.getElementById('f-criador').value;
-  const rf  = document.getElementById('f-req')?.value || '';
-  const df  = document.getElementById('f-dep')?.value || '';
+  const rf      = document.getElementById('f-req')?.value || '';
+  const df      = document.getElementById('f-dep')?.value || '';
+  const spc     = document.getElementById('search-pc')?.value.toLowerCase() || '';
+  const pcf     = document.getElementById('f-pc')?.value || '';
+  const deptoF  = document.getElementById('f-depto')?.value || '';
+  const adminOnly = document.getElementById('f-admin-only')?.checked || false;
 
   const pn      = getPeriod('nfs');
   const vencDe  = (document.getElementById('nfs-venc-de')?.value)  || null;
@@ -1649,6 +1874,7 @@ function renderNFTable(){
     if(n.status === 'Pago') return false;
     if(!inPeriod(n.emissao, pn)) return false;
     if(s && !n.num.includes(s) && !n.forn.toLowerCase().includes(s)) return false;
+    if(spc && !(n.pc||'').toLowerCase().includes(spc)) return false;
     if(sf && n.status !== sf) return false;
     if(af && etapaAtual(n) !== af) return false;
     if(cf && (n.criador||'') !== cf) return false;
@@ -1656,6 +1882,23 @@ function renderNFTable(){
     const venc = calcVenc(n.emissao);
     if(vencDe  && (!venc || venc < vencDe))  return false;
     if(vencAte && (!venc || venc > vencAte)) return false;
+    // Filtro Pedido de Compra
+    if(pcf === 'com' && !n.pc) return false;
+    if(pcf === 'sem' && n.pc) return false;
+    // Filtro Requisitante
+    if(rf && (n.requisitante||'') !== rf) return false;
+    // Filtro Depósito
+    if(df && (n.deposito||'') !== df) return false;
+    // Filtro Departamento: mostra NFs cujo requisitante pertence ao departamento selecionado
+    if(deptoF){
+      const funcReq = funcionarios.find(f => f.nome === n.requisitante || f.nome1 === n.requisitante);
+      if(!funcReq || (funcReq.area||'') !== deptoF) return false;
+    }
+    // Filtro Admin: mostra só NFs de requisitantes do departamento do admin logado
+    if(adminOnly && currentUser && currentUser.admin){
+      const funcReq = funcionarios.find(f => f.nome === n.requisitante || f.nome1 === n.requisitante);
+      if(!funcReq || (funcReq.area||'') !== (currentUser.area||'')) return false;
+    }
     // Filtro Dias em Aberto
     const dias = diasAberto(n.emissao)||0;
     if(diasMin !== null && dias < diasMin) return false;
@@ -1672,6 +1915,16 @@ function renderNFTable(){
   }
 
   document.getElementById('nf-cnt').textContent=list.length+' registro'+(list.length!==1?'s':'');
+  const totalVal = list.reduce((s,n)=>s+(parseFloat(n.val)||0),0);
+  const totalEl  = document.getElementById('nf-total-val');
+  if(totalEl){
+    if(totalVal > 0){
+      totalEl.textContent = 'Total: ' + fval(totalVal);
+      totalEl.style.display='';
+    } else {
+      totalEl.style.display='none';
+    }
+  }
   const tb=document.getElementById('nf-tbody');
   if(!list.length){tb.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="eico">🔍</div><h3>Nenhum resultado</h3><p>Ajuste os filtros</p></div></td></tr>`;return;}
   tb.innerHTML=list.map(n=>`<tr>
@@ -1965,10 +2218,11 @@ function limparSnapshots(){
 // RELATÓRIOS
 // ══════════════════════════════════════════════
 const ETAPA_COLORS = {
-  Suprimentos:'#0854a0', RTP:'#107e3e', MIGO:'#6a1a75', MIRO:'#e76500', CAP:'#bb0000'
+  Suprimentos:'#0854a0', RTP:'#107e3e', MIGO:'#6a1a75', MIRO:'#e76500', FIN:'#bb0000'
 };
 
 function renderRelatorios(){
+  renderSLA();
   renderRelEtapas();
   renderRelMedia();
   renderRelFornecedores();
@@ -2136,7 +2390,7 @@ function renderRelSnapshots(){
   carregarSnapshotsFirebase().then(snaps => {
     if(cnt) cnt.textContent = snaps.length+' importação'+(snaps.length!==1?'ões':'');
     if(!snaps.length){ el.innerHTML='<div class="rel-empty">Nenhum snapshot registrado ainda.</div>'; return; }
-    const ETAPA_COLORS = {MIGO:'#6a1a75',MIRO:'#e76500',CAP:'#bb0000',Suprimentos:'#0854a0'};
+    const ETAPA_COLORS = {MIGO:'#6a1a75',MIRO:'#e76500',FIN:'#bb0000',SUP:'#0854a0'};
     el.innerHTML = snaps.map(s=>{
       const r = s.resumo || {};
       const etapasStr = AREAS.map(a => r[a]>0 ?
@@ -2437,6 +2691,88 @@ function renderRankingEtapa(etapa, limiarDias, elId, cssClass){
   }).join('');
 }
 
+
+// ══════════════════════════════════════════════
+// PAINEL DE SLA
+// ══════════════════════════════════════════════
+function renderSLA(){
+  const pendentes = nfs.filter(n=>n.status!=='Pago');
+  if(!pendentes.length) return;
+
+  // Count by SLA faixa
+  let cnt07=0, cnt814=0, cnt1521=0, cnt2230=0, cnt30=0;
+  pendentes.forEach(n=>{
+    const d = diasAberto(n.emissao)||0;
+    if(d<=7)       cnt07++;
+    else if(d<=14) cnt814++;
+    else if(d<=21) cnt1521++;
+    else if(d<=30) cnt2230++;
+    else           cnt30++;
+  });
+
+  // Update summary boxes
+  document.getElementById('sla-cnt-0-7').textContent   = cnt07;
+  document.getElementById('sla-cnt-8-14').textContent  = cnt814;
+  document.getElementById('sla-cnt-15-21').textContent = cnt1521;
+  document.getElementById('sla-cnt-22-30').textContent = cnt2230;
+  document.getElementById('sla-cnt-30').textContent    = cnt30;
+
+  // ── Gauge helper ──
+  function setGauge(id, pctId, dentro, totalEtapa){
+    const pct = totalEtapa>0 ? Math.round(dentro/totalEtapa*100) : 0;
+    const el = document.getElementById(id);
+    // Semicircle: rotate from -90deg (0%) to +90deg (100%)
+    const deg = -90 + (pct/100)*180;
+    if(el) el.style.transform = 'rotate('+deg+'deg)';
+    const pEl = document.getElementById(pctId);
+    if(pEl) pEl.textContent = pct+'%';
+    return pct;
+  }
+
+  // ── Bar chart helper ──
+  function setBars(elId, faixas, color){
+    const el = document.getElementById(elId);
+    if(!el) return;
+    const maxV = Math.max(...faixas.map(f=>f.v), 1);
+    el.innerHTML = faixas.map(f=>{
+      const w = Math.round(f.v/maxV*100);
+      return '<div class="sla-bar-row">'+
+        '<span class="sla-bar-label">'+f.label+'</span>'+
+        '<div class="sla-bar-track"><div class="sla-bar-inner" style="width:'+w+'%;background:'+color+'"></div></div>'+
+        '<span class="sla-bar-val">'+f.v+'</span>'+
+      '</div>';
+    }).join('');
+  }
+
+  // ── Suprimentos: NFs 0-7 dias por etapa ──
+  const supNFs = pendentes.filter(n=>(diasAberto(n.emissao)||0)<=7);
+  const supDentro = supNFs.filter(n=>etapaAtual(n)==='SUP').length;
+  setGauge('gauge-sup','gauge-sup-pct', supDentro, supNFs.length);
+  const supPorEtapa = AREAS.map(a=>({label:a, v:supNFs.filter(n=>etapaAtual(n)===a).length})).filter(f=>f.v>0);
+  setBars('sla-bars-sup', supPorEtapa.length?supPorEtapa:[{label:'Nenhuma',v:0}], '#4caf50');
+
+  // ── MIGO: NFs 8-14 dias, etapa MIGO ──
+  const migoNFs = pendentes.filter(n=>{const d=diasAberto(n.emissao)||0; return d>7&&d<=14;});
+  const migoDentro = migoNFs.filter(n=>etapaAtual(n)==='MIGO').length;
+  setGauge('gauge-migo','gauge-migo-pct', migoDentro, migoNFs.length);
+  const migoPorEtapa = AREAS.map(a=>({label:a, v:migoNFs.filter(n=>etapaAtual(n)===a).length})).filter(f=>f.v>0);
+  setBars('sla-bars-migo', migoPorEtapa.length?migoPorEtapa:[{label:'Nenhuma',v:0}], '#ffc107');
+
+  // ── MIRO: NFs 15-21 dias, etapa MIRO ──
+  const miroNFs = pendentes.filter(n=>{const d=diasAberto(n.emissao)||0; return d>14&&d<=21;});
+  const miroDentro = miroNFs.filter(n=>etapaAtual(n)==='MIRO').length;
+  setGauge('gauge-miro','gauge-miro-pct', miroDentro, miroNFs.length);
+  const miroPorEtapa = AREAS.map(a=>({label:a, v:miroNFs.filter(n=>etapaAtual(n)===a).length})).filter(f=>f.v>0);
+  setBars('sla-bars-miro', miroPorEtapa.length?miroPorEtapa:[{label:'Nenhuma',v:0}], '#ff9800');
+
+  // ── CAP: NFs 22-30 dias, etapa CAP ──
+  const capNFs = pendentes.filter(n=>{const d=diasAberto(n.emissao)||0; return d>21&&d<=30;});
+  const capDentro = capNFs.filter(n=>etapaAtual(n)==='FIN').length;
+  setGauge('gauge-cap','gauge-cap-pct', capDentro, capNFs.length);
+  const capPorEtapa = AREAS.map(a=>({label:a, v:capNFs.filter(n=>etapaAtual(n)===a).length})).filter(f=>f.v>0);
+  setBars('sla-bars-cap', capPorEtapa.length?capPorEtapa:[{label:'Nenhuma',v:0}], '#e53935');
+}
+
 // ── USUÁRIO ATUAL ──
 function popularUserSwitcher(){
   if(!_fbUser) return;
@@ -2594,7 +2930,7 @@ function baixarTemplate(){
   const rows = [
     ['Nome','Sobrenome','Usuário SAP','Área','Admin (SIM/NAO)'],
     ['João','Silva','JSILVA','RTP','NAO'],
-    ['Maria','Pereira','MPEREIRA','CAP','SIM'],
+    ['Maria','Pereira','MPEREIRA','FIN','SIM'],
     ['Carlos','Oliveira','COLIVEIRA','MIRO','NAO'],
   ];
   const csv = rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
@@ -2635,7 +2971,7 @@ function importarUsuarios(input){
         if(!area){ erros++; return; }
 
         // Capitalize area correctly
-        const AREA_MAP = {suprimentos:'Suprimentos',rtp:'RTP',migo:'MIGO',miro:'MIRO',cap:'CAP'};
+        const AREA_MAP = {suprimentos:'Suprimentos',rtp:'RTP',migo:'MIGO',miro:'MIRO',cap:'FIN'};
         const admin    = adminRaw === 'sim' || adminRaw === 'yes' || adminRaw === 's';
         const nomeCompleto = nome + ' ' + sobrenome;
 
@@ -2669,7 +3005,6 @@ function deletarFuncionario(id){
 }
 
 function atualizarFuncionarios(){
-  // Show logged user's etapa
   const display = document.getElementById('msg-area-display');
   if(display) display.textContent = currentUser ? (currentUser.etapa||currentUser.area||'—') : '—';
 
@@ -2765,16 +3100,16 @@ function determineEtapas(pcRawD, pedMigoRaw, miroRaw, statusMigo){
   // Suprimentos nunca recebe 'alerta' — NFs sem critério ficam sem etapa ativa
   if(colL_aval){
     // MIGO: col L = "A Avaliar"
-    return { Suprimentos:'ok', MIGO:'alerta', MIRO:'',      CAP:'' };
+    return { SUP:'ok', MIGO:'alerta', MIRO:'', CAP:'' };
   } else if(colL_num && colO_aval){
     // MIRO: col L numérico E col O = "A Avaliar"
-    return { Suprimentos:'ok', MIGO:'ok',     MIRO:'alerta', CAP:'' };
+    return { SUP:'ok', MIGO:'ok', MIRO:'alerta', CAP:'' };
   } else if(colL_num && colO_num){
     // CAP: col L numérico E col O numérico
-    return { Suprimentos:'ok', MIGO:'ok',     MIRO:'ok',    CAP:'alerta' };
+    return { SUP:'ok', MIGO:'ok', MIRO:'ok', CAP:'alerta' };
   } else {
     // Nenhuma etapa ativa — Suprimentos ok mas sem alerta
-    return { Suprimentos:'ok', MIGO:'',       MIRO:'',      CAP:'' };
+    return { SUP:'ok', MIGO:'', MIRO:'', CAP:'' };
   }
 }
 
@@ -2971,18 +3306,18 @@ function detectChanges(existing, incoming){
 function limparFirebase(){
   if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar o Firebase.',''); return; }
   showToast('Limpando Firebase...','')
+  // funcionarios, notificacoes e presence NUNCA sao apagados
   Promise.all([
     db.ref('nfs').remove(),
     db.ref('meta').remove(),
-    db.ref('arquivos').remove(),
-    db.ref('notificacoes').remove()
+    db.ref('arquivos').remove()
   ]).then(()=>{
     nfs=[];
     notifs=[];
     arquivosFirebase=[];
     try{localStorage.removeItem(STORAGE_NFS);localStorage.removeItem(STORAGE_MSGS);localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(STORAGE_ARQ);}catch(e){}
     refresh();
-    showToast('Firebase limpo! Pronto para nova importação.','success');
+    showToast('Firebase limpo! Notificações e usuários preservados.','success');
   }).catch(e=>showToast('Erro ao limpar: '+e.message,''));
 }
 
@@ -3176,11 +3511,10 @@ function importFile(file){
       const arqData = {id:arqId,filename:file.name,dataNome:parseDateFromFilename(file.name),importadoEm:new Date().toISOString(),importadoFmt:new Date().toLocaleString('pt-BR'),qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada,superseded:false,importadoPor:_fbUser?_fbUser.email:''};
       db.ref('arquivos/'+arqId).set(arqData);
       refresh();
-      showToast('Salvando no Firebase... aguarde.','');
       showToast('Salvando dados... não feche a página.','');
-      // Step 1: Delete all old NFs to prevent duplicates
       db.ref('nfs').remove()
         .then(() => salvarTodasNFsFirebase())
+        .then(() => salvarSnapshotFirebase())
         .then(() => {
           _importing = false;
           const version = Date.now();
