@@ -1,0 +1,3546 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GestãoNF — Controle de Notas Fiscais</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<style>
+  :root {
+    --sap-blue:       #0854a0;
+    --sap-blue-dark:  #063a72;
+    --sap-blue-light: #d1e8ff;
+    --sap-blue-hover: #0a6ed1;
+    --sap-shell:      #354a5e;
+    --bg:             #f7f7f7;
+    --white:          #ffffff;
+    --border:         #d9d9d9;
+    --border-dark:    #b0b0b0;
+    --row-alt:        #f2f7fd;
+    --row-hover:      #e0eef9;
+    --text:           #32363a;
+    --muted:          #6a6d70;
+    --link:           #0854a0;
+    --green:          #107e3e;
+    --green-bg:       #f1fdf6;
+    --yellow:         #e76500;
+    --yellow-bg:      #fef7f1;
+    --red:            #bb0000;
+    --red-bg:         #fff1f1;
+    --font:           Arial, 'Helvetica Neue', sans-serif;
+    --r:              4px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* SHELL */
+  .shell { background: var(--sap-shell); height: 44px; display: flex; align-items: center; padding: 0 14px; gap: 0; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 4px rgba(0,0,0,.25); }
+  .shell-logo { display: flex; align-items: center; gap: 8px; padding-right: 14px; border-right: 1px solid rgba(255,255,255,.2); margin-right: 2px; }
+  .sap-box { background: #0070c0; color: #fff; font-weight: 700; font-size: 12px; letter-spacing: 1px; padding: 3px 6px; border-radius: 3px; }
+  .shell-app { color: #fff; font-size: 14px; font-weight: 700; }
+  .snav-btn { background: none; border: none; color: rgba(255,255,255,.75); font-family: var(--font); font-size: 13px; padding: 0 14px; cursor: pointer; height: 44px; display: flex; align-items: center; gap: 5px; border-bottom: 3px solid transparent; transition: all .12s; white-space: nowrap; }
+  .snav-btn:hover { color: #fff; background: rgba(255,255,255,.08); }
+  .snav-btn.active { color: #fff; border-bottom-color: #fff; }
+  .shell-sp { flex: 1; }
+  .nbadge { background: #e76500; color: #fff; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 1px 5px; }
+  .area-chip { background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.3); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 3px; }
+
+  /* PAGE HDR */
+  .page-hdr { background: var(--white); border-bottom: 1px solid var(--border); padding: 10px 20px 0; }
+  .page-title { font-size: 17px; font-weight: 700; color: var(--sap-blue-dark); padding-bottom: 10px; }
+
+  /* MAIN */
+  .main { flex: 1; padding: 14px 20px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* SAP CONTROLS */
+  .sap-btn { background: linear-gradient(to bottom,#fff,#f0f0f0); border: 1px solid var(--border-dark); color: var(--sap-blue); font-family: var(--font); font-size: 12px; font-weight: 700; padding: 5px 13px; border-radius: var(--r); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; transition: all .1s; }
+  .sap-btn:hover { background: linear-gradient(to bottom,#e4f0fb,#cde4f5); border-color: var(--sap-blue); }
+  .sap-btn.primary { background: linear-gradient(to bottom,#1a73d4,#0854a0); color: #fff; border-color: var(--sap-blue-dark); }
+  .sap-btn.primary:hover { background: linear-gradient(to bottom,#2280e0,#0963b5); }
+  .sap-input { background: #fff; border: 1px solid var(--border-dark); color: var(--text); font-family: var(--font); font-size: 12px; padding: 5px 8px; border-radius: var(--r); outline: none; }
+  .sap-input:focus { border-color: var(--sap-blue); box-shadow: 0 0 0 2px rgba(8,84,160,.12); }
+  .sap-input::placeholder { color: #aaa; }
+  .sap-sel { background: #fff; border: 1px solid var(--border-dark); color: var(--text); font-family: var(--font); font-size: 12px; padding: 5px 8px; border-radius: var(--r); outline: none; cursor: pointer; }
+  .sap-sel:focus { border-color: var(--sap-blue); }
+  #excel-input { display: none; }
+
+  /* TOOLBAR */
+  .tbar { background: var(--white); border: 1px solid var(--border); border-bottom: none; border-radius: var(--r) var(--r) 0 0; padding: 7px 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+  .tbar-sp { flex: 1; }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(155px,1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat-card { background: var(--white); border: 1px solid var(--border); border-top: 3px solid var(--border); border-radius: var(--r); padding: 12px 14px; transition: box-shadow .15s; }
+  .stat-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+  .stat-card.green { border-top-color: var(--green); }
+  .stat-card.yellow { border-top-color: var(--yellow); }
+  .stat-card.red { border-top-color: var(--red); }
+  .stat-card.blue { border-top-color: var(--sap-blue); }
+  .stat-lbl { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+  .stat-val { font-size: 26px; font-weight: 700; line-height: 1; }
+  .stat-card.green .stat-val  { color: var(--green); }
+  .stat-card.yellow .stat-val { color: var(--yellow); }
+  .stat-card.red .stat-val    { color: var(--red); }
+  .stat-card.blue .stat-val   { color: var(--sap-blue); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* DROP ZONE */
+  .drop-zone { background: var(--white); border: 2px dashed var(--border-dark); border-radius: var(--r); padding: 20px; text-align: center; color: var(--muted); margin-bottom: 14px; cursor: pointer; transition: all .15s; }
+  .drop-zone:hover,.drop-zone.drag-over { border-color: var(--sap-blue); color: var(--sap-blue); background: #eef5fc; }
+  .dz-icon { font-size: 26px; margin-bottom: 5px; }
+  .dz-txt { font-size: 13px; font-weight: 700; }
+  .dz-hint { font-size: 11px; color: #aaa; margin-top: 3px; }
+
+  /* SECTION HDR */
+  .sec-hdr { background: linear-gradient(to bottom,#f2f2f2,#e8e8e8); border: 1px solid var(--border); border-bottom: none; border-radius: var(--r) var(--r) 0 0; padding: 7px 12px; display: flex; align-items: center; justify-content: space-between; }
+  .sec-hdr-title { font-size: 13px; font-weight: 700; }
+  .sec-hdr-count { font-size: 11px; color: var(--muted); }
+
+  /* TABLE */
+  .tbl-wrap { background: var(--white); border: 1px solid var(--border); border-radius: 0 0 var(--r) var(--r); overflow: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: linear-gradient(to bottom,#f2f2f2,#e8e8e8); }
+  th { text-align: left; font-size: 12px; font-weight: 700; padding: 7px 10px; border-right: 1px solid var(--border); border-bottom: 2px solid var(--border-dark); white-space: nowrap; }
+  th:last-child { border-right: none; }
+  td { padding: 5px 10px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 12px; }
+  td:last-child { border-right: none; }
+  tbody tr:nth-child(even) td { background: var(--row-alt); }
+  tbody tr:hover td { background: var(--row-hover) !important; }
+  .link-cell { color: var(--link); font-weight: 700; cursor: pointer; text-decoration: underline; }
+  .link-cell:hover { color: var(--sap-blue-hover); }
+
+  /* BADGES */
+  .badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; border: 1px solid; }
+  .badge.pago     { background: var(--green-bg);  color: var(--green);  border-color: #a9d5b5; }
+  .badge.pendente { background: var(--yellow-bg); color: var(--yellow); border-color: #f5c97e; }
+
+  .area-tag { display: inline-block; background: var(--sap-blue-light); color: var(--sap-blue-dark); border: 1px solid #a4caee; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 2px; margin: 1px; }
+  .mono { font-family: 'Courier New', monospace; font-size: 11px; }
+
+  /* MODAL */
+  .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 99999; align-items: center; justify-content: center; }
+  .modal-ov.open { display: flex; }
+  .modal { background: var(--white); border: 1px solid var(--border-dark); border-radius: var(--r); width: 720px; max-width: 96vw; max-height: 92vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.28); animation: mfade .15s ease; }
+  @keyframes mfade { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+  .modal-tbar { background: linear-gradient(to bottom,#f2f2f2,#e4e4e4); border-bottom: 2px solid var(--sap-blue); padding: 9px 14px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .modal-tbar h2 { font-size: 14px; font-weight: 700; color: var(--sap-blue-dark); }
+  .modal-tbar-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .modal-close { background: none; border: 1px solid var(--border-dark); color: var(--muted); width: 24px; height: 24px; border-radius: 3px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all .1s; }
+  .modal-close:hover { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .modal-body { padding: 14px; }
+
+  /* DETAIL GRID */
+  .dgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 12px; }
+  .dcell { background: var(--white); padding: 8px 11px; }
+  .dcell:nth-child(even) { background: #f9f9f9; }
+  .dcell label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 2px; letter-spacing: .4px; }
+  .dcell .dval { font-size: 13px; }
+  .dcell .dval.link { color: var(--link); font-weight: 700; }
+
+  /* ETAPAS */
+  .block-hdr { background: linear-gradient(to bottom,#f2f2f2,#e8e8e8); border: 1px solid var(--border); border-bottom: none; border-radius: var(--r) var(--r) 0 0; padding: 6px 12px; font-size: 12px; font-weight: 700; }
+  .block-body { border: 1px solid var(--border); border-radius: 0 0 var(--r) var(--r); background: var(--white); padding: 14px; margin-bottom: 12px; overflow-x: auto; }
+  .etapas-flow { display: flex; align-items: flex-start; }
+  .etapa { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 75px; position: relative; }
+  .etapa::after { content:''; position:absolute; top:14px; left:55%; right:-55%; height:2px; background:var(--border); z-index:0; }
+  .etapa:last-child::after { display: none; }
+  .etapa-dot { width:28px; height:28px; border-radius:50%; border:2px solid var(--border-dark); background:#f5f5f5; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; position:relative; z-index:1; }
+  .etapa.ok    .etapa-dot { border-color:var(--green);  background:var(--green-bg);  color:var(--green); }
+  .etapa.alerta .etapa-dot{ border-color:var(--yellow); background:var(--yellow-bg); color:var(--yellow); }
+  .etapa.erro  .etapa-dot { border-color:var(--red);    background:var(--red-bg);    color:var(--red); }
+  .etapa.ok::after { background:var(--green); opacity:.4; }
+  .etapa-name { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--muted); margin-top:5px; text-align:center; }
+  .etapa.ok    .etapa-name { color:var(--green); }
+  .etapa.alerta .etapa-name{ color:var(--yellow); }
+  .etapa.erro  .etapa-name { color:var(--red); }
+
+  /* COMM */
+  .msg-list { max-height: 190px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 5px; }
+  .message { border:1px solid var(--border); border-left:3px solid var(--sap-blue); border-radius:0 var(--r) var(--r) 0; background:#f9fbff; padding:7px 11px; }
+  .message.area-RTP         { border-left-color: #0854a0; }
+  .message.area-Suprimentos { border-left-color: #107e3e; }
+  .message.area-MIRO        { border-left-color: #e76500; }
+  .message.area-MIGO        { border-left-color: #6a1a75; }
+  .message.area-FIN         { border-left-color: #bb0000; }
+  .msg-head { display:flex; align-items:center; gap:7px; margin-bottom:3px; }
+  .msg-area-tag { font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; background:var(--sap-blue-light); color:var(--sap-blue-dark); border:1px solid #a4caee; }
+  .msg-time { font-size:10px; color:var(--muted); margin-left:auto; }
+  .msg-txt { font-size:12px; line-height:1.5; }
+  .new-msg-wrap { display:flex; flex-direction:column; gap:7px; }
+  .new-msg-row { display:flex; gap:7px; align-items:flex-start; }
+  .msg-ta { background:#fff; border:1px solid var(--border-dark); color:var(--text); font-family:var(--font); font-size:12px; padding:6px 8px; border-radius:var(--r); outline:none; width:100%; resize:vertical; min-height:52px; }
+  .msg-ta:focus { border-color:var(--sap-blue); box-shadow:0 0 0 2px rgba(8,84,160,.12); }
+  .new-msg-actions { display:flex; gap:7px; justify-content:flex-end; }
+
+  /* NOTIF */
+  .notif-list { display:flex; flex-direction:column; gap:7px; }
+  .notif-card { background:var(--white); border:1px solid var(--border); border-radius:var(--r); padding:11px 14px; display:flex; align-items:flex-start; gap:11px; }
+  .notif-card.clicavel { cursor:pointer; }
+  .notif-card.clicavel:hover { border-color:var(--sap-blue); box-shadow:0 2px 8px rgba(8,84,160,.12); }
+  .notif-card.unread { border-left:3px solid var(--sap-blue); }
+  .notif-card:hover { box-shadow:0 2px 6px rgba(0,0,0,.08); }
+  .notif-ico { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+  .notif-ico.info    { background:#e4f0fb; }
+  .notif-ico.warn    { background:var(--yellow-bg); }
+  .notif-ico.success { background:var(--green-bg); }
+  .notif-ico.error   { background:var(--red-bg); }
+  .notif-body { flex:1; }
+  .notif-row { display:flex; align-items:center; gap:7px; margin-bottom:2px; }
+  .notif-title { font-size:13px; font-weight:700; }
+  .notif-time  { font-size:11px; color:var(--muted); margin-left:auto; }
+  .notif-desc  { font-size:12px; color:var(--muted); line-height:1.5; }
+  .notif-nf    { color:var(--link); font-weight:700; font-size:11px; }
+
+  /* EMAIL MODAL */
+  .email-content { background:#f9f9f9; border:1px solid var(--border); border-radius:var(--r); padding:11px; font-size:12px; line-height:1.7; white-space:pre-wrap; font-family:'Courier New',monospace; max-height:280px; overflow-y:auto; }
+  .efield { margin-bottom:9px; }
+  .efield label { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:3px; letter-spacing:.4px; }
+  .efield-val { background:#f5f5f5; border:1px solid var(--border); border-radius:var(--r); padding:5px 8px; font-size:12px; color:var(--text); }
+
+
+
+  /* DIAS EM ABERTO */
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+  .dias-normal { font-family:'Courier New',monospace; font-size:12px; font-weight:700; color:var(--text); }
+  .dias-alerta { font-family:'Courier New',monospace; font-size:12px; font-weight:700; color:var(--red); animation:blink 1.1s ease-in-out infinite; }
+
+
+
+  /* AREA TAGS — etapa states */
+  .area-tag-ok     { display:inline-block; background:#d6f0e2; color:var(--green); border:1px solid #a9d5b5; font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; margin:1px; }
+  .area-tag-alerta { display:inline-block; background:#fff3e0; color:#b84c00; border:1px solid #f5a623; font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; margin:1px; }
+  .area-tag-alerta.piscando { animation:blink 1.1s ease-in-out infinite; }
+  .area-tag-none   { display:inline-block; background:#f0f0f0; color:#aaa; border:1px solid #ddd; font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; margin:1px; }
+
+  /* IMPORT LOG */
+  .imp-log { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-top:14px; }
+  .imp-log-hdr { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:7px 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .imp-log-body { max-height:220px; overflow-y:auto; }
+  .log-row { display:flex; align-items:flex-start; gap:10px; padding:7px 12px; border-bottom:1px solid var(--border); font-size:12px; }
+  .log-row:last-child { border-bottom:none; }
+  .log-row.new  { border-left:3px solid var(--sap-blue); }
+  .log-row.upd  { border-left:3px solid var(--yellow); }
+  .log-row.same { border-left:3px solid var(--border-dark); }
+  .log-tag { font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; white-space:nowrap; flex-shrink:0; margin-top:1px; }
+  .log-tag.new  { background:#e4f0fb; color:var(--sap-blue); border:1px solid #a4caee; }
+  .log-tag.upd  { background:var(--yellow-bg); color:var(--yellow); border:1px solid #f5c97e; }
+  .log-tag.same { background:#f0f0f0; color:var(--muted); border:1px solid var(--border); }
+  .log-nf   { font-family:'Courier New',monospace; font-weight:700; color:var(--link); flex-shrink:0; }
+  .log-desc { color:var(--text); flex:1; line-height:1.5; }
+  .log-changed { color:var(--yellow); font-weight:700; font-size:11px; }
+
+
+
+  /* ETAPAS STRIP */
+  .etapas-strip { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .etapa-strip-card { flex:1; min-width:120px; background:var(--white); border:1px solid var(--border); border-radius:var(--r); padding:10px 14px; border-top:3px solid var(--border); }
+  .etapa-strip-card.s { border-top-color:#0854a0; }
+  .etapa-strip-card.r { border-top-color:#107e3e; }
+  .etapa-strip-card.mi{ border-top-color:#6a1a75; }
+  .etapa-strip-card.mr{ border-top-color:#e76500; }
+  .etapa-strip-card.c { border-top-color:#bb0000; }
+  .etapa-strip-card.resumo { border-top-color:var(--sap-blue); min-width:200px; }
+  .resumo-line { display:flex; justify-content:space-between; align-items:center; font-size:12px; padding:2px 0; border-bottom:1px solid var(--border); }
+  .resumo-line:last-child { border-bottom:none; }
+  .resumo-area { font-weight:700; }
+  .resumo-pct  { font-size:11px; color:var(--muted); margin-left:8px; }
+  .etapa-strip-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:4px; }
+  .etapa-strip-val { font-size:22px; font-weight:700; }
+  .etapa-strip-card.s .etapa-strip-val { color:#0854a0; }
+  .etapa-strip-card.r .etapa-strip-val { color:#107e3e; }
+  .etapa-strip-card.mi .etapa-strip-val{ color:#6a1a75; }
+  .etapa-strip-card.mr .etapa-strip-val{ color:#e76500; }
+  .etapa-strip-card.c .etapa-strip-val { color:#bb0000; }
+  .etapa-strip-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* SORT BUTTONS */
+  .sort-btn { background:none; border:1px solid var(--border); color:var(--muted); font-size:10px; font-weight:700; padding:2px 7px; border-radius:3px; cursor:pointer; margin-left:3px; transition:all .1s; }
+  .sort-btn:hover { border-color:var(--sap-blue); color:var(--sap-blue); }
+  .sort-btn.active { background:var(--sap-blue); border-color:var(--sap-blue); color:#fff; }
+
+  /* HISTÓRICO */
+  .hist-summary { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .hist-kpi { background:var(--white); border:1px solid var(--border); border-top:3px solid var(--green); border-radius:var(--r); padding:10px 16px; min-width:140px; }
+  .hist-kpi-lbl { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:.5px; margin-bottom:4px; }
+  .hist-kpi-val { font-size:22px; font-weight:700; color:var(--green); }
+  .hist-kpi-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+
+
+
+  /* PERIOD FILTER */
+  .period-bar { background:var(--white); border:1px solid var(--border); border-radius:var(--r); padding:7px 12px; display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .period-bar label { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  .period-input { background:#fff; border:1px solid var(--border-dark); color:var(--text); font-family:var(--font); font-size:12px; padding:4px 8px; border-radius:var(--r); outline:none; }
+  .period-input:focus { border-color:var(--sap-blue); }
+  .period-clear { font-size:11px; color:var(--muted); cursor:pointer; text-decoration:underline; }
+  .period-clear:hover { color:var(--red); }
+
+
+  /* SLA PANEL */
+  .sla-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px; padding:14px; }
+  .sla-card { background:#f9fbff; border:1px solid var(--border); border-radius:var(--r); padding:14px; text-align:center; }
+  .sla-card-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-bottom:10px; }
+  .sla-gauge-wrap { position:relative; width:120px; height:60px; margin:0 auto 10px; overflow:hidden; }
+  .sla-gauge-bg { width:120px; height:60px; border-radius:60px 60px 0 0; background:#eee; position:absolute; top:0; }
+  .sla-gauge-fill { width:120px; height:60px; border-radius:60px 60px 0 0; position:absolute; top:0; transform-origin:center bottom; transition:transform .6s ease; }
+  .sla-gauge-pct { position:absolute; bottom:2px; left:50%; transform:translateX(-50%); font-size:16px; font-weight:700; }
+  .sla-bar-wrap { margin:8px 0; }
+  .sla-bar-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:11px; }
+  .sla-bar-label { width:60px; text-align:right; color:var(--muted); flex-shrink:0; }
+  .sla-bar-track { flex:1; background:#eee; border-radius:10px; height:10px; overflow:hidden; }
+  .sla-bar-inner { height:100%; border-radius:10px; transition:width .4s; }
+  .sla-bar-val { width:40px; font-size:10px; color:var(--muted); }
+  .sla-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:12px 14px; border-top:1px solid var(--border); }
+  .sla-sum-box { text-align:center; padding:8px; border-radius:var(--r); }
+  .sla-sum-num { font-size:20px; font-weight:700; }
+  .sla-sum-lbl { font-size:10px; color:var(--muted); margin-top:2px; }
+
+  /* RANKING ATRASOS */
+  .rank-row { display:flex; align-items:center; gap:10px; padding:8px 14px; border-bottom:1px solid var(--border); font-size:12px; }
+  .rank-row:last-child { border-bottom:none; }
+  .rank-row:hover { background:var(--row-hover); }
+  .rank-pos { font-family:'Courier New',monospace; font-weight:700; color:var(--muted); width:24px; text-align:center; flex-shrink:0; }
+  .rank-pos.top1 { color:#c8a400; }
+  .rank-pos.top2 { color:#888; }
+  .rank-pos.top3 { color:#a05c00; }
+  .rank-alert { font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; border:1px solid; flex-shrink:0; }
+  .rank-alert.migo { background:#f3e5f5; color:#6a1a75; border-color:#ce93d8; }
+  .rank-alert.miro { background:#fff3e0; color:#e65100; border-color:#ffcc80; }
+
+  /* ARQUIVOS */
+  .arq-card  { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
+  .arq-hdr   { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:7px 14px; font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .arq-row   { display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid var(--border); font-size:12px; transition:background .1s; }
+  .arq-row:last-child { border-bottom:none; }
+  .arq-row:hover { background:var(--row-hover); }
+  .arq-row.ativo      { border-left:3px solid var(--green); background:#f8fff9; }
+  .arq-row.superseded { border-left:3px solid var(--border-dark); opacity:.6; }
+  .arq-date-badge { font-family:'Courier New',monospace; font-weight:700; color:var(--sap-blue); background:var(--sap-blue-light); border:1px solid #a4caee; font-size:11px; padding:2px 8px; border-radius:3px; flex-shrink:0; }
+  .arq-filename { font-weight:700; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .arq-meta  { font-size:11px; color:var(--muted); white-space:nowrap; }
+  .arq-pills { display:flex; gap:4px; flex-shrink:0; }
+  .arq-pill  { font-size:10px; font-weight:700; padding:1px 6px; border-radius:10px; border:1px solid; }
+  .arq-pill.nova  { background:#e4f0fb; color:var(--sap-blue);  border-color:#a4caee; }
+  .arq-pill.upd   { background:var(--yellow-bg); color:var(--yellow); border-color:#f5c97e; }
+  .arq-pill.same  { background:#f0f0f0; color:var(--muted); border-color:var(--border); }
+  .arq-status-tag { font-size:10px; font-weight:700; padding:2px 7px; border-radius:3px; flex-shrink:0; }
+  .arq-status-tag.ativo { background:var(--green-bg); color:var(--green); border:1px solid #a9d5b5; }
+  .arq-status-tag.sup   { background:#f0f0f0; color:var(--muted); border:1px solid var(--border); }
+  .arq-empty { text-align:center; padding:40px; color:var(--muted); font-size:12px; }
+
+  /* EDIT USER MODAL */
+  .edit-modal-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:999999; align-items:center; justify-content:center; }
+  .edit-modal-ov.open { display:flex; }
+  .edit-modal { background:var(--white); border:1px solid var(--border-dark); border-radius:var(--r); width:420px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,.28); }
+  .edit-modal-tbar { background:linear-gradient(to bottom,#f2f2f2,#e4e4e4); border-bottom:2px solid var(--sap-blue); padding:9px 14px; display:flex; align-items:center; justify-content:space-between; }
+  .edit-modal-tbar h3 { font-size:14px; font-weight:700; color:var(--sap-blue-dark); }
+  .edit-modal-body { padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .edit-modal-actions { display:flex; gap:8px; justify-content:flex-end; padding:0 16px 16px; }
+
+  /* RELATÓRIOS */
+  .rel-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .rel-card { background:var(--white); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
+  .rel-card-full { grid-column:span 2; }
+  .rel-card-hdr { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:8px 14px; font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .rel-card-body { padding:14px; }
+  .rel-bar-wrap { display:flex; flex-direction:column; gap:8px; }
+  .rel-bar-row { display:flex; align-items:center; gap:10px; font-size:12px; }
+  .rel-bar-label { width:110px; flex-shrink:0; font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rel-bar-track { flex:1; background:#f0f0f0; border-radius:3px; height:18px; position:relative; border:1px solid var(--border); }
+  .rel-bar-fill { height:100%; border-radius:3px; display:flex; align-items:center; padding-left:6px; font-size:11px; font-weight:700; color:#fff; white-space:nowrap; transition:width .4s ease; }
+  .rel-bar-val { margin-left:6px; color:var(--muted); font-size:11px; }
+  .rel-delta { font-size:11px; font-weight:700; margin-left:6px; white-space:nowrap; }
+  .rel-delta.melhor { color:var(--green); }
+  .rel-delta.pior   { color:var(--red); }
+  .rel-delta.igual  { color:var(--muted); }
+  .rel-compare-note { font-size:11px; color:var(--muted); padding:6px 0 2px; font-style:italic; }
+  .snap-list { max-height:260px; overflow-y:auto; }
+  .snap-row { display:flex; align-items:center; gap:10px; padding:7px 14px; border-bottom:1px solid var(--border); font-size:12px; }
+  .snap-row:last-child { border-bottom:none; }
+  .snap-row:hover { background:var(--row-hover); }
+  .snap-date { font-family:'Courier New',monospace; font-weight:700; color:var(--link); flex-shrink:0; width:130px; }
+  .snap-info { flex:1; color:var(--muted); }
+  .snap-pill { display:inline-flex; align-items:center; gap:3px; background:#e4f0fb; color:var(--sap-blue); border:1px solid #a4caee; font-size:10px; font-weight:700; padding:1px 7px; border-radius:10px; margin-right:4px; }
+  .rel-empty { text-align:center; padding:30px; color:var(--muted); font-size:12px; }
+  .rel-tbl { width:100%; border-collapse:collapse; font-size:12px; }
+  .rel-tbl th { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); padding:6px 10px; text-align:left; border-bottom:2px solid var(--border-dark); border-right:1px solid var(--border); font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+  .rel-tbl td { padding:6px 10px; border-bottom:1px solid var(--border); border-right:1px solid var(--border); }
+  .rel-tbl tr:nth-child(even) td { background:var(--row-alt); }
+  .rel-tbl tr:hover td { background:var(--row-hover); }
+  .rel-tbl th:last-child, .rel-tbl td:last-child { border-right:none; }
+
+  .rel-placeholder { background:var(--white); border:2px dashed var(--border-dark); border-radius:var(--r); padding:48px 24px; text-align:center; color:var(--muted); }
+  .rel-placeholder .rel-ico { font-size:36px; margin-bottom:12px; }
+  .rel-placeholder h3 { font-size:15px; font-weight:700; color:var(--text); margin-bottom:6px; }
+  .rel-placeholder p { font-size:13px; line-height:1.6; max-width:420px; margin:0 auto; }
+
+
+
+  /* LOGIN */
+  .login-screen { position:fixed; inset:0; background:var(--sap-shell); display:none; align-items:center; justify-content:center; z-index:999999; }
+  .login-box { background:var(--white); border-radius:8px; padding:40px; width:360px; box-shadow:0 8px 32px rgba(0,0,0,.3); }
+  .login-logo { text-align:center; margin-bottom:24px; }
+  .login-logo .sap-box { font-size:18px; padding:8px 16px; display:inline-block; }
+  .login-title { font-family:var(--font); font-size:20px; font-weight:700; color:var(--sap-blue-dark); margin-top:10px; }
+  .login-sub { font-size:12px; color:var(--muted); margin-top:4px; }
+  .login-field { margin-bottom:14px; }
+  .login-field label { font-size:11px; font-weight:700; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px; letter-spacing:.4px; }
+  .login-input { width:100%; background:#fff; border:1px solid var(--border-dark); color:var(--text); font-family:var(--font); font-size:13px; padding:9px 12px; border-radius:var(--r); outline:none; box-sizing:border-box; }
+  .login-input:focus { border-color:var(--sap-blue); box-shadow:0 0 0 2px rgba(8,84,160,.12); }
+  .login-btn { width:100%; background:linear-gradient(to bottom,#1a73d4,#0854a0); color:#fff; border:none; font-family:var(--font); font-size:14px; font-weight:700; padding:11px; border-radius:var(--r); cursor:pointer; margin-top:8px; transition:opacity .15s; }
+  .login-btn:hover { opacity:.9; }
+  .login-btn:disabled { opacity:.6; cursor:not-allowed; }
+  .login-err { background:var(--red-bg); border:1px solid #f5b3b3; color:var(--red); font-size:12px; padding:8px 12px; border-radius:var(--r); margin-top:10px; display:none; }
+  .login-err.show { display:block; }
+
+  /* USER SWITCHER */
+  .user-switcher { display:flex; align-items:center; gap:8px; }
+  .user-sel { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.3); color:#fff;
+    font-family:var(--font); font-size:12px; font-weight:700; padding:4px 10px;
+    border-radius:3px; outline:none; cursor:pointer; max-width:180px; }
+  .user-sel option { background:var(--sap-shell); color:#fff; }
+  .user-admin-badge { background:#e76500; color:#fff; font-size:9px; font-weight:700;
+    padding:1px 5px; border-radius:3px; letter-spacing:.4px; }
+
+  /* CONFIGURAÇÕES */
+  .cfg-grid { display:flex; flex-direction:column; gap:16px; width:100%; }
+  .cfg-form-card { background:#ffffff; border:1px solid #d9d9d9; border-radius:4px; overflow:visible; }
+  .cfg-form-hdr { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:7px 12px; font-size:13px; font-weight:700; }
+  .cfg-form-body { padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .cfg-field { display:flex; flex-direction:column; gap:3px; }
+  .cfg-field label { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:.4px; }
+  .cfg-list-card { background:#ffffff; border:1px solid #d9d9d9; border-radius:4px; overflow:visible; width:100%; }
+  .cfg-list-hdr { background:linear-gradient(to bottom,#f2f2f2,#e8e8e8); border-bottom:1px solid var(--border); padding:7px 12px; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:space-between; }
+  .func-row { display:flex; align-items:center; gap:0; padding:6px 12px; border-bottom:1px solid var(--border); font-size:12px; }
+  .func-row:last-child { border-bottom:none; }
+  .func-row:hover { background:var(--row-hover); }
+  .func-row:nth-child(even) { background:var(--row-alt); }
+  .func-row:nth-child(even):hover { background:var(--row-hover); }
+  .func-name { flex:1; font-weight:700; }
+  .func-admin-tag { font-size:9px;font-weight:700;background:#fff3e0;color:#b84c00;border:1px solid #f5a623;padding:1px 5px;border-radius:2px;margin-left:5px;vertical-align:middle; }
+  .func-area { width:100px; }
+  .func-del { background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:2px 6px; border-radius:3px; transition:all .1s; }
+  .func-del:hover { background:var(--red-bg); color:var(--red); }
+  .func-empty { text-align:center; padding:24px; color:var(--muted); font-size:12px; }
+
+  /* TOAST */
+  .toast { position:fixed; bottom:18px; right:18px; background:var(--sap-shell); color:#fff; border-radius:var(--r); padding:9px 14px; font-size:13px; z-index:9999; transform:translateY(60px); opacity:0; transition:all .2s; display:flex; align-items:center; gap:7px; box-shadow:0 4px 14px rgba(0,0,0,.3); }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.success { background:var(--green); }
+
+  /* EMPTY */
+  .empty { text-align:center; padding:36px 14px; color:var(--muted); }
+  .empty .eico { font-size:28px; margin-bottom:8px; }
+  .empty h3 { font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
+  .empty p { font-size:12px; }
+
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:#f0f0f0; }
+  ::-webkit-scrollbar-thumb { background:var(--border-dark); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--sap-blue); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="sap-box">DANFELP</div>
+      <div class="login-title">GestãoNF</div>
+      <div class="login-sub">Controle de Notas Fiscais</div>
+    </div>
+    <div class="login-field">
+      <label>E-mail</label>
+      <input class="login-input" id="login-email" type="email" placeholder="seu@email.com.br" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label>Senha</label>
+      <input class="login-input" id="login-senha" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="fazerLogin()">Entrar</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- SHELL BAR -->
+<div class="shell">
+  <div class="shell-logo">
+    <div class="sap-box">DANFELP</div>
+    <span class="shell-app">GestãoNF</span>
+  </div>
+  <button class="snav-btn active" onclick="showView('dashboard',this)">Dashboard</button>
+  <button class="snav-btn" onclick="showView('nfs',this)">📄 NFs Pendentes</button>
+  <button class="snav-btn" onclick="showView('notif',this)">Notificações <span class="nbadge" id="nbadge">3</span></button>
+  <button class="snav-btn" onclick="showView('historico',this)">💰 Pagamentos</button>
+  <button class="snav-btn" onclick="showView('relatorios',this)">📊 Relatórios</button>
+  <button class="snav-btn" onclick="showView('arquivos',this)">📁 Arquivos</button>
+  <button class="snav-btn" onclick="showView('cfg',this)">⚙ Configurações</button>
+  <div class="shell-sp"></div>
+  <div class="user-switcher">
+    <span style="color:rgba(255,255,255,.6);font-size:11px">👤</span>
+    <span id="user-display" style="color:#fff;font-size:12px;font-weight:700">—</span>
+    <span class="user-admin-badge" id="admin-badge" style="display:none">ADMIN</span>
+    <button class="sap-btn" onclick="fazerLogout()" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;font-size:11px;padding:3px 10px;margin-left:4px">Sair</button>
+  </div>
+</div>
+
+<!-- PAGE HEADER -->
+<div class="page-hdr">
+  <div class="page-title" id="page-title">Dashboard — Controle de Notas Fiscais</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div class="view active" id="view-dashboard">
+    <div class="stats-row">
+      <div class="stat-card green"><div class="stat-lbl" style="cursor:pointer;color:var(--green)" onclick="showView('historico',document.querySelector('.snav-btn:nth-child(4)'))">Pagas ↗</div><div class="stat-val" id="s-pagas" style="cursor:pointer" onclick="showView('historico',document.querySelector('.snav-btn:nth-child(4)'))">0</div><div class="stat-sub">Ver no Histórico</div></div>
+      <div class="stat-card yellow"><div class="stat-lbl">Pendentes</div><div class="stat-val" id="s-pend">0</div><div class="stat-sub">Aguardando pagamento</div></div>
+      <div class="stat-card red"><div class="stat-lbl">Vencidas (+25d)</div><div class="stat-val" id="s-bloq">0</div><div class="stat-sub">Dias em aberto ≥ 25</div></div>
+      <div class="stat-card blue"><div class="stat-lbl">Total NFs</div><div class="stat-val" id="s-total">0</div><div class="stat-sub">No sistema</div></div>
+    </div>
+
+    <div class="period-bar">
+      <label>Período (Emissão):</label>
+      <span style="font-size:12px;color:var(--muted)">De</span>
+      <input type="date" class="period-input" id="dash-dt-de" onchange="renderDashFilter()">
+      <span style="font-size:12px;color:var(--muted)">até</span>
+      <input type="date" class="period-input" id="dash-dt-ate" onchange="renderDashFilter()">
+      <span class="period-clear" onclick="clearPeriod('dash')">✕ Limpar período</span>
+    </div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('excel-input').click()">
+      <div class="dz-icon">📊</div>
+      <div class="dz-txt">Clique aqui ou arraste o arquivo Excel para importar</div>
+      <div class="dz-hint">Colunas esperadas: NF · Fornecedor · Valor · Status · Vencimento · Áreas</div>
+    </div>
+    <input type="file" id="excel-input" accept=".xlsx,.xls,.csv">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:-8px;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="modo-teste" style="width:13px;height:13px">
+        Modo Teste — carregar sem filtro (E/F/I)
+      </label>
+      <div style="display:flex;gap:8px">
+        <button class="sap-btn" onclick="limparFirebase()" style="color:var(--red);border-color:var(--red)">🔥 Limpar Firebase</button>
+        <button class="sap-btn" onclick="limparDados()" style="color:var(--red);border-color:var(--red)">🗑 Limpar Dados Locais</button>
+      </div>
+    </div>
+
+    <div class="imp-log" id="imp-log" style="display:none">
+      <div class="imp-log-hdr">
+        📋 Log da Última Importação
+        <span id="imp-log-summary" style="font-weight:400;color:var(--muted);font-size:11px"></span>
+      </div>
+      <div class="imp-log-body" id="imp-log-body"></div>
+    </div>
+
+    <!-- ETAPAS STRIP -->
+    <div class="etapas-strip" id="etapas-strip">
+      <div class="etapa-strip-card resumo" id="es-resumo-card">
+        <div class="etapa-strip-lbl" style="color:var(--sap-blue)">Resumo por Etapa</div>
+        <div id="es-resumo-body" style="margin-top:6px"></div>
+      </div>
+      <div class="etapa-strip-card s"><div class="etapa-strip-lbl">SUP</div><div class="etapa-strip-val" id="es-s">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
+      <div class="etapa-strip-card mi"><div class="etapa-strip-lbl">MIGO</div><div class="etapa-strip-val" id="es-mi">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
+      <div class="etapa-strip-card mr"><div class="etapa-strip-lbl">MIRO</div><div class="etapa-strip-val" id="es-mr">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
+      <div class="etapa-strip-card c"><div class="etapa-strip-lbl">FIN</div><div class="etapa-strip-val" id="es-c">0</div><div class="etapa-strip-sub">NFs nesta etapa</div></div>
+    </div>
+
+    <div class="sec-hdr">
+      <span class="sec-hdr-title">Consolidado por Fornecedor — Pendentes</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--muted)">Ordenar:</span>
+        <button class="sort-btn active" id="sort-nome-az" onclick="setDashSort('nome','az')">A→Z</button>
+        <button class="sort-btn" id="sort-nome-za" onclick="setDashSort('nome','za')">Z→A</button>
+        <button class="sort-btn" id="sort-val-desc" onclick="setDashSort('val','desc')">Valor ↓</button>
+        <button class="sort-btn" id="sort-val-asc" onclick="setDashSort('val','asc')">Valor ↑</button>
+        <button class="sort-btn" id="sort-dias-desc" onclick="setDashSort('dias','desc')">Dias ↓</button>
+        <button class="sort-btn" id="sort-dias-asc" onclick="setDashSort('dias','asc')">Dias ↑</button>
+        <span style="width:1px;height:16px;background:var(--border);margin:0 2px"></span>
+        <span class="sec-hdr-count" id="dash-cnt">0 fornecedores</span>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fornecedor</th>
+            <th style="text-align:center">Qtd. NFs</th>
+            <th>Valor Total (BRL)</th>
+            <th style="text-align:center">NF Mais Atrasada<br><span style="font-weight:400;font-size:10px">(dias em aberto)</span></th>
+            <th>Etapas em Aberto</th>
+            <th>Ver NFs</th>
+          </tr>
+        </thead>
+        <tbody id="dash-tbody">
+          <tr><td colspan="6"><div class="empty"><div class="eico">📂</div><h3>Nenhuma NF importada</h3><p>Importe o relatório Excel para começar</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NFs -->
+  <div class="view" id="view-nfs">
+    <div class="period-bar" style="gap:10px;flex-wrap:wrap">
+      <label>Emissão:</label>
+      <span style="font-size:12px;color:var(--muted)">De</span>
+      <input type="date" class="period-input" id="nfs-dt-de" onchange="renderNFTable()">
+      <span style="font-size:12px;color:var(--muted)">até</span>
+      <input type="date" class="period-input" id="nfs-dt-ate" onchange="renderNFTable()">
+      <span class="period-clear" onclick="clearPeriod('nfs')">✕</span>
+      <div style="width:1px;height:20px;background:var(--border)"></div>
+      <label>Vencimento:</label>
+      <span style="font-size:12px;color:var(--muted)">De</span>
+      <input type="date" class="period-input" id="nfs-venc-de" onchange="renderNFTable()">
+      <span style="font-size:12px;color:var(--muted)">até</span>
+      <input type="date" class="period-input" id="nfs-venc-ate" onchange="renderNFTable()">
+      <span class="period-clear" onclick="limparVenc()">✕</span>
+      <div style="width:1px;height:20px;background:var(--border)"></div>
+      <label>Dias em Aberto:</label>
+      <span style="font-size:12px;color:var(--muted)">≥</span>
+      <input type="number" class="period-input" id="nfs-dias-min" min="0" placeholder="0"
+        style="width:60px;text-align:center" oninput="renderNFTable()">
+      <span style="font-size:12px;color:var(--muted)">e ≤</span>
+      <input type="number" class="period-input" id="nfs-dias-max" min="0" placeholder="∞"
+        style="width:60px;text-align:center" oninput="renderNFTable()">
+      <span class="period-clear" onclick="limparDias()">✕</span>
+    </div>
+    <div class="tbar">
+      <input class="sap-input" id="search-nf" placeholder="🔍  Buscar por NF ou fornecedor" style="width:210px" oninput="renderNFTable()">
+      <input class="sap-input" id="search-pc" placeholder="🔍  Buscar por Pedido de Compra" style="width:210px" oninput="renderNFTable()">
+      <select class="sap-sel" id="f-pc" onchange="renderNFTable()" style="max-width:160px">
+        <option value="">Pedido de Compra</option>
+        <option value="com">Com Pedido</option>
+        <option value="sem">Sem Pedido</option>
+      </select>
+<select id="f-status" style="display:none"><option value=""></option></select>
+      <select class="sap-sel" id="f-area" onchange="renderNFTable()">
+        <option value="">Etapa</option>
+        <option>SUP</option><option>MIGO</option><option>MIRO</option><option>FIN</option>
+      </select>
+      <select class="sap-sel" id="f-criador" onchange="renderNFTable()" style="max-width:180px">
+        <option value="">Comprador</option>
+      </select>
+      <select class="sap-sel" id="f-req" onchange="renderNFTable()" style="max-width:180px">
+        <option value="">Requisitante</option>
+      </select>
+      <select class="sap-sel" id="f-dep" onchange="renderNFTable()" style="max-width:160px">
+        <option value="">Depósito</option>
+      </select>
+      <select class="sap-sel" id="f-depto" onchange="renderNFTable()" style="max-width:160px">
+        <option value="">Departamento</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap">
+        <input type="checkbox" id="f-admin-only" onchange="renderNFTable()" style="width:13px;height:13px;cursor:pointer">
+        Admin
+      </label>
+      <div class="tbar-sep"></div>
+      <span style="font-size:11px;color:var(--muted)">Ordenar:</span>
+      <button class="sort-btn" id="nf-sort-nome-az"  onclick="setNFSort('nome','az')">A→Z</button>
+      <button class="sort-btn" id="nf-sort-nome-za"  onclick="setNFSort('nome','za')">Z→A</button>
+      <button class="sort-btn" id="nf-sort-dias-desc" onclick="setNFSort('dias','desc')">Dias ↓</button>
+      <button class="sort-btn" id="nf-sort-dias-asc"  onclick="setNFSort('dias','asc')">Dias ↑</button>
+      <button class="sort-btn" id="nf-sort-val-desc"  onclick="setNFSort('val','desc')">Valor ↓</button>
+      <button class="sort-btn" id="nf-sort-val-asc"   onclick="setNFSort('val','asc')">Valor ↑</button>
+      <div class="tbar-sep"></div>
+      <button class="sap-btn" onclick="limparTodosFiltros()" style="color:var(--yellow);border-color:var(--yellow)">✕ Limpar Filtros</button>
+      <button class="sap-btn primary" id="btn-import-nf" onclick="document.getElementById('excel-input').click()" style="display:none">↑ Importar Excel</button>
+      <button class="sap-btn" onclick="exportarNFs()" style="color:var(--green);border-color:var(--green)">⬇ Exportar Excel</button>
+      <div class="tbar-sp"></div>
+      <span style="font-size:11px;color:var(--muted)" id="nf-cnt">0 registros</span>
+      <span style="font-size:12px;font-weight:700;color:var(--sap-blue);background:var(--sap-blue-light);border:1px solid #a4caee;padding:3px 10px;border-radius:3px;margin-left:4px" id="nf-total-val" style="display:none"></span>
+    </div>
+    <div class="tbl-wrap" style="border-radius:0 0 4px 4px">
+      <table><thead><tr><th>Nº NF</th><th>Fornecedor</th><th>Pedido de Compra</th><th>Valor (BRL)</th><th>Emissão</th><th>Vencimento</th><th>Dias em Aberto</th><th>Status</th><th>Etapas do Processo</th><th>Msgs</th><th>Ações</th></tr></thead>
+      <tbody id="nf-tbody"><tr><td colspan="11"><div class="empty"><div class="eico">📂</div><h3>Nenhuma NF carregada</h3><p>Use "Importar Excel" acima</p></div></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- NOTIFICAÇÕES -->
+  <div class="view" id="view-notif">
+    <div class="sec-hdr"><span class="sec-hdr-title">Central de Notificações</span><button class="sap-btn" onclick="markAllRead()">✔ Marcar todas como lidas</button></div>
+    <div style="border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:var(--white);padding:12px">
+      <div class="notif-list" id="notif-list"></div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="view" id="view-historico">
+    <div class="hist-summary">
+      <div class="hist-kpi">
+        <div class="hist-kpi-lbl">Total Pago</div>
+        <div class="hist-kpi-val" id="hist-total">0</div>
+        <div class="hist-kpi-sub">NFs quitadas</div>
+      </div>
+      <div class="hist-kpi">
+        <div class="hist-kpi-lbl">Valor Total</div>
+        <div class="hist-kpi-val" id="hist-valor" style="font-size:16px">R$ 0,00</div>
+        <div class="hist-kpi-sub">Soma das NFs pagas</div>
+      </div>
+    </div>
+    <div class="period-bar">
+      <label>Período (Emissão):</label>
+      <span style="font-size:12px;color:var(--muted)">De</span>
+      <input type="date" class="period-input" id="hist-dt-de" onchange="renderHistFilter()">
+      <span style="font-size:12px;color:var(--muted)">até</span>
+      <input type="date" class="period-input" id="hist-dt-ate" onchange="renderHistFilter()">
+      <span class="period-clear" onclick="clearPeriod('hist')">✕ Limpar período</span>
+    </div>
+    <div class="tbar" style="border-radius:4px 4px 0 0">
+      <input class="sap-input" id="hist-search" placeholder="🔍  Buscar por NF ou fornecedor" style="width:210px" oninput="renderHistorico()">
+      <div class="tbar-sep"></div>
+      <span style="font-size:11px;color:var(--muted)">Ordenar:</span>
+      <button class="sort-btn" id="hist-sort-nome-az"   onclick="setHistSort('nome','az')">A→Z</button>
+      <button class="sort-btn" id="hist-sort-nome-za"   onclick="setHistSort('nome','za')">Z→A</button>
+      <button class="sort-btn" id="hist-sort-val-desc"  onclick="setHistSort('val','desc')">Valor ↓</button>
+      <button class="sort-btn" id="hist-sort-val-asc"   onclick="setHistSort('val','asc')">Valor ↑</button>
+      <div class="tbar-sp"></div>
+      <span style="font-size:11px;color:var(--muted)" id="hist-cnt">0 registros</span>
+    </div>
+    <div class="tbl-wrap" style="border-radius:0 0 4px 4px">
+      <table>
+        <thead>
+          <tr>
+            <th>Nº NF</th>
+            <th>Fornecedor</th>
+            <th>Pedido de Compra</th>
+            <th>Valor (BRL)</th>
+            <th>Data Pagamento</th>
+            <th>Data Emissão</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="hist-tbody">
+          <tr><td colspan="7"><div class="empty"><div class="eico">🗂</div><h3>Nenhuma NF paga ainda</h3><p>As NFs quitadas aparecerão aqui automaticamente</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ARQUIVOS -->
+  <div class="view" id="view-arquivos">
+    <div class="arq-card">
+      <div class="arq-hdr">
+        📁 Arquivos Importados
+        <span style="font-weight:400;font-size:11px;color:var(--muted);margin-left:4px" id="arq-count"></span>
+        <span style="flex:1"></span>
+        <span style="font-size:11px;color:var(--muted);font-weight:400">
+          Nomenclatura esperada: <strong>ddmmaa</strong> no nome do arquivo (ex: <em>relatorio_200526.xlsx</em>)
+        </span>
+      </div>
+      <div id="arq-list"><div class="arq-empty">Nenhum arquivo importado ainda.</div></div>
+    </div>
+  </div>
+
+  <!-- RELATÓRIOS -->
+  <div class="view" id="view-relatorios">
+    <div class="period-bar">
+      <label>Período (Emissão):</label>
+      <span style="font-size:12px;color:var(--muted)">De</span>
+      <input type="date" class="period-input" id="rel-dt-de" onchange="renderRelFilter()">
+      <span style="font-size:12px;color:var(--muted)">até</span>
+      <input type="date" class="period-input" id="rel-dt-ate" onchange="renderRelFilter()">
+      <span class="period-clear" onclick="clearPeriod('rel')">✕ Limpar período</span>
+    </div>
+    <div class="rel-grid">
+
+
+      <!-- SLA: Painel de SLA por Etapa -->
+      <div class="rel-card rel-card-full">
+        <div class="rel-card-hdr">⏱ Painel de SLA por Etapa — Volumetria por Prazo de Emissão</div>
+        <div class="sla-summary" id="sla-summary" style="grid-template-columns:repeat(5,1fr)">
+          <div class="sla-sum-box" style="background:#e8f5e9">
+            <div class="sla-sum-num" style="color:#2e7d32" id="sla-cnt-0-7">—</div>
+            <div class="sla-sum-lbl">🟢 0–7 dias<br>SUP</div>
+          </div>
+          <div class="sla-sum-box" style="background:#fff8e1">
+            <div class="sla-sum-num" style="color:#f57f17" id="sla-cnt-8-14">—</div>
+            <div class="sla-sum-lbl">🟡 8–14 dias<br>MIGO</div>
+          </div>
+          <div class="sla-sum-box" style="background:#fff3e0">
+            <div class="sla-sum-num" style="color:#e65100" id="sla-cnt-15-21">—</div>
+            <div class="sla-sum-lbl">🟠 15–21 dias<br>MIRO</div>
+          </div>
+          <div class="sla-sum-box" style="background:#fce4ec">
+            <div class="sla-sum-num" style="color:#c62828" id="sla-cnt-22-30">—</div>
+            <div class="sla-sum-lbl">🔴 22–30 dias<br>FIN</div>
+          </div>
+          <div class="sla-sum-box" style="background:#eeeeee">
+            <div class="sla-sum-num" style="color:#424242" id="sla-cnt-30">—</div>
+            <div class="sla-sum-lbl">⚫ +30 dias<br>Fora do SLA</div>
+          </div>
+        </div>
+        <div class="sla-grid">
+          <!-- Gauge SUP -->
+          <div class="sla-card">
+            <div class="sla-card-title">🟢 SUP (0–7 dias)</div>
+            <div class="sla-gauge-wrap">
+              <div class="sla-gauge-bg"></div>
+              <div class="sla-gauge-fill" id="gauge-sup" style="background:#4caf50"></div>
+              <div class="sla-gauge-pct" id="gauge-sup-pct" style="color:#2e7d32">—</div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">dentro do prazo</div>
+            <div class="sla-bar-wrap" id="sla-bars-sup"></div>
+          </div>
+          <!-- Gauge MIGO -->
+          <div class="sla-card">
+            <div class="sla-card-title">🟡 MIGO (até 14 dias)</div>
+            <div class="sla-gauge-wrap">
+              <div class="sla-gauge-bg"></div>
+              <div class="sla-gauge-fill" id="gauge-migo" style="background:#ffc107"></div>
+              <div class="sla-gauge-pct" id="gauge-migo-pct" style="color:#f57f17">—</div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">dentro do prazo</div>
+            <div class="sla-bar-wrap" id="sla-bars-migo"></div>
+          </div>
+          <!-- Gauge MIRO -->
+          <div class="sla-card">
+            <div class="sla-card-title">🟠 MIRO (até 21 dias)</div>
+            <div class="sla-gauge-wrap">
+              <div class="sla-gauge-bg"></div>
+              <div class="sla-gauge-fill" id="gauge-miro" style="background:#ff9800"></div>
+              <div class="sla-gauge-pct" id="gauge-miro-pct" style="color:#e65100">—</div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">dentro do prazo</div>
+            <div class="sla-bar-wrap" id="sla-bars-miro"></div>
+          </div>
+          <!-- Gauge FIN -->
+          <div class="sla-card">
+            <div class="sla-card-title">🔴 FIN (22–30 dias)</div>
+            <div class="sla-gauge-wrap">
+              <div class="sla-gauge-bg"></div>
+              <div class="sla-gauge-fill" id="gauge-cap" style="background:#e53935"></div>
+              <div class="sla-gauge-pct" id="gauge-cap-pct" style="color:#c62828">—</div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">dentro do prazo</div>
+            <div class="sla-bar-wrap" id="sla-bars-cap"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- R1: NFs por Etapa (snapshot atual) -->
+      <div class="rel-card">
+        <div class="rel-card-hdr">📍 NFs Pendentes por Etapa — Hoje</div>
+        <div class="rel-card-body">
+          <div id="rel-etapa-note" class="rel-compare-note"></div>
+          <div class="rel-bar-wrap" id="rel-etapa-bars">
+            <div class="rel-empty">Sem dados de importação ainda.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- R2: Média diária por etapa -->
+      <div class="rel-card">
+        <div class="rel-card-hdr">📈 Média Diária de NFs por Etapa</div>
+        <div class="rel-card-body">
+          <div class="rel-bar-wrap" id="rel-media-bars">
+            <div class="rel-empty">Importe ao menos 2 dias para calcular a média.</div>
+          </div>
+
+      <!-- R5: Ranking MIGO — NFs acima de 14 dias -->
+      <div class="rel-card rel-card-full">
+        <div class="rel-card-hdr">
+          🔴 Ranking MIGO — Requisitantes com NFs acima de 14 dias em aberto
+          <span style="margin-left:auto;font-size:11px;font-weight:400;color:var(--muted)">Critério: Etapa MIGO + Emissão &gt; 14 dias</span>
+        </div>
+        <div id="rel-rank-migo">
+          <div class="rel-empty">Importe um arquivo para ver o ranking.</div>
+        </div>
+      </div>
+
+      <!-- R6: Ranking MIRO — NFs acima de 21 dias -->
+      <div class="rel-card rel-card-full">
+        <div class="rel-card-hdr">
+          🟠 Ranking MIRO — Requisitantes com NFs acima de 21 dias em aberto
+          <span style="margin-left:auto;font-size:11px;font-weight:400;color:var(--muted)">Critério: Etapa MIRO + Emissão &gt; 21 dias</span>
+        </div>
+        <div id="rel-rank-miro">
+          <div class="rel-empty">Importe um arquivo para ver o ranking.</div>
+        </div>
+      </div>
+
+      <!-- R3: Fornecedores com mais NFs paradas -->
+      <div class="rel-card rel-card-full">
+        <div class="rel-card-hdr">
+          ⚠ Fornecedores com NFs Paradas por Mais Tempo
+          <span style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <span style="font-size:11px;color:var(--muted);font-weight:400">Ordenar:</span>
+            <button class="sort-btn" id="rel-sort-nome-az"   onclick="setRelSort('nome','az')">A→Z</button>
+            <button class="sort-btn" id="rel-sort-nome-za"   onclick="setRelSort('nome','za')">Z→A</button>
+            <button class="sort-btn" id="rel-sort-dias-desc" onclick="setRelSort('dias','desc')">Dias ↓</button>
+            <button class="sort-btn" id="rel-sort-dias-asc"  onclick="setRelSort('dias','asc')">Dias ↑</button>
+            <button class="sort-btn" id="rel-sort-val-desc"  onclick="setRelSort('val','desc')">Valor ↓</button>
+            <button class="sort-btn" id="rel-sort-val-asc"   onclick="setRelSort('val','asc')">Valor ↑</button>
+          </span>
+        </div>
+        <div class="rel-card-body" style="padding:0">
+          <table class="rel-tbl" id="rel-forn-tbl">
+            <thead>
+              <tr>
+                <th>Fornecedor</th>
+                <th style="text-align:center">NFs Pendentes</th>
+                <th style="text-align:center">Máx. Dias Parado</th>
+                <th style="text-align:center">Média Dias</th>
+                <th>Etapa Atual</th>
+                <th>Valor Total</th>
+              </tr>
+            </thead>
+            <tbody id="rel-forn-tbody">
+              <tr><td colspan="6"><div class="rel-empty">Sem dados ainda.</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- R4: Histórico de snapshots -->
+      <div class="rel-card rel-card-full">
+        <div class="rel-card-hdr">
+          🗄 Histórico de Importações
+          <span style="font-weight:400;font-size:11px;color:var(--muted);margin-left:auto" id="rel-snap-count"></span>
+          <button class="sap-btn" style="margin-left:8px" onclick="limparSnapshots()">🗑 Limpar Histórico</button>
+        </div>
+        <div class="snap-list" id="rel-snap-list">
+          <div class="rel-empty">Nenhuma importação registrada ainda.</div>
+        </div>
+
+    </div>
+  </div>
+
+  <!-- CONFIGURAÇÕES -->
+  <div class="view" id="view-cfg">
+
+    <!-- INFO PANEL -->
+    <div style="background:#e8f2fd;border:1px solid #a4caee;border-radius:4px;padding:14px 16px;margin-bottom:12px;font-size:12px;line-height:1.7">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="font-weight:700;color:#0854a0;margin-bottom:6px">🔐 1. Acesso ao sistema</div>
+          Feito no <strong>Firebase Console</strong> pelos owners.<br>
+          Cadastre o <strong>e-mail</strong> e a <strong>senha</strong> de cada usuário em:<br>
+          <a href="https://console.firebase.google.com/project/danfelproject/authentication/users" target="_blank" style="color:#0854a0">Firebase → Authentication → Users</a>
+        </div>
+        <div>
+          <div style="font-weight:700;color:#0854a0;margin-bottom:6px">⚙ 2. Configuração do perfil</div>
+          Após o cadastro no Firebase, configure aqui:<br>
+          • <strong>Etapa</strong> — SUP / MIGO / MIRO / FIN<br>
+          • <strong>Departamento</strong> — departamento do usuário<br>
+          • <strong>Permissões</strong> — Admin ou Usuário
+        </div>
+      </div>
+    </div>
+
+    <!-- USER LIST -->
+    <div style="background:#fff;border:1px solid #d9d9d9;border-radius:4px;overflow:hidden">
+      <div style="background:linear-gradient(to bottom,#f2f2f2,#e8e8e8);border-bottom:1px solid #d9d9d9;padding:9px 14px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between">
+        <span>⚙ Configuração de Usuários</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="cfg-count" style="font-size:11px;color:#888;font-weight:400">0 registros</span>
+          <button class="sap-btn primary" onclick="abrirNovoUsuario()">+ Novo Usuário</button>
+        </div>
+      </div>
+      <div id="cfg-list">
+        <div style="text-align:center;padding:30px;color:#999;font-size:13px">Carregando usuários...</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- EDIT USER MODAL -->
+<div class="edit-modal-ov" id="edit-user-ov" onclick="closeEditUser(event)">
+  <div class="edit-modal" onclick="event.stopPropagation()">
+    <div class="edit-modal-tbar">
+      <h3>✏️ Editar Usuário</h3>
+      <button class="modal-close" onclick="closeEditUser()">✕</button>
+    </div>
+    <div class="edit-modal-body">
+      <input type="hidden" id="edit-user-id">
+      <div class="cfg-field">
+        <label>Nome Completo</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <input class="sap-input" id="edit-nome" placeholder="Nome" style="width:100%">
+          <input class="sap-input" id="edit-sobrenome" placeholder="Sobrenome" style="width:100%">
+        </div>
+      </div>
+      <div class="cfg-field">
+        <label>E-mail (login)</label>
+        <input class="sap-input" id="edit-email" type="email" style="width:100%">
+      </div>
+      <div class="cfg-field">
+        <label>Usuário SAP</label>
+        <input class="sap-input" id="edit-sap" style="width:100%">
+      </div>
+      <div class="cfg-field">
+        <label>Departamento</label>
+        <select class="sap-sel" id="edit-area" style="width:100%">
+          <option value="">Selecione...</option>
+          <option>Suprimentos</option><option>MIGO</option>
+          <option>MIRO</option><option>FIN</option>
+        </select>
+      </div>
+      <div class="cfg-field" style="flex-direction:row;align-items:center;gap:8px">
+        <input type="checkbox" id="edit-admin" style="width:14px;height:14px;cursor:pointer">
+        <label for="edit-admin" style="text-transform:none;font-size:12px;color:var(--text);cursor:pointer;letter-spacing:0">
+          Admin do Departamento
+        </label>
+      </div>
+    </div>
+    <div class="edit-modal-actions">
+      <button class="sap-btn" onclick="closeEditUser()">Cancelar</button>
+      <button class="sap-btn primary" onclick="salvarEdicaoUsuario()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NF -->
+<div class="modal-ov" id="modal-ov" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-tbar">
+      <div><h2 id="m-title">Nota Fiscal</h2><div class="modal-tbar-sub" id="m-sub">Detalhes, fluxo e comunicação</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-ov').classList.remove('open');document.body.style.overflow='';currentNF=null;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="dgrid" id="m-detail"></div>
+      <div class="block-hdr">📋 Fluxo de Etapas — Áreas Envolvidas</div>
+      <div class="block-body"><div class="etapas-flow" id="etapas-flow"></div></div>
+      <div class="block-hdr">💬 Comunicação entre Áreas</div>
+      <div class="block-body" style="padding:12px">
+        <div class="msg-list" id="msg-list"></div>
+        <div class="new-msg-wrap">
+          <div class="new-msg-row">
+            <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.4px">Sua Área</div>
+              <div id="msg-area-display" style="font-size:12px;font-weight:700;color:var(--sap-blue);background:var(--sap-blue-light);border:1px solid #a4caee;padding:5px 8px;border-radius:var(--r);width:130px;text-align:center">—</div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.4px;margin-top:4px">Etapa Destinatária</div>
+              <select class="sap-sel" id="msg-area-dest" onchange="atualizarFuncionarios()" style="width:130px">
+                <option value="">Selecionar...</option>
+                <option>SUP</option><option>MIGO</option><option>MIRO</option><option>FIN</option>
+              </select>
+              <select class="sap-sel" id="msg-func" style="width:130px;margin-top:2px">
+                <option value="">— Funcionário —</option>
+              </select>
+            </div>
+            <textarea class="msg-ta" id="msg-ta" placeholder="Descreva a ocorrência, ajuste necessário ou confirmação..."></textarea>
+          </div>
+          <div class="new-msg-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
+            <button class="sap-btn" onclick="gerarEmail()">✉ Gerar E-mail</button>
+            <button class="sap-btn primary" onclick="enviarMsg()">↑ Enviar Mensagem</button>
+            <button class="modal-close" onclick="document.getElementById('modal-ov').classList.remove('open');document.body.style.overflow='';currentNF=null;" title="Fechar" style="width:28px;height:28px;font-size:14px">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EMAIL MODAL -->
+<div class="modal-ov" id="email-ov" onclick="closeEmail(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:580px">
+    <div class="modal-tbar">
+      <div><h2>E-mail Gerado Automaticamente</h2><div class="modal-tbar-sub">Copie e envie para as áreas envolvidas</div></div>
+      <button class="modal-close" onclick="closeEmail()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="efield"><label>Assunto</label><div class="efield-val" id="e-subj"></div></div>
+      <div class="efield"><label>Para (Áreas)</label><div class="efield-val" id="e-para"></div></div>
+      <div class="efield"><label>Corpo do E-mail</label><div class="email-content" id="e-body"></div></div>
+      <button class="sap-btn primary" onclick="copiarEmail()">📋 Copiar E-mail</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const AREAS = ['SUP','MIGO','MIRO','FIN'];
+let nfs=[], currentNF=null, notifs=[];
+let dashSort = {campo:'nome', dir:'az'};
+let nfSort   = {campo:'', dir:''};
+let histSort = {campo:'', dir:''};
+let relSort  = {campo:'', dir:''};
+
+let funcionarios = [
+  {id:1, nome:'Ana Beatriz Lima',    nome1:'Ana Beatriz', sobrenome:'Lima',     area:'RTP',         cargo:'', admin:false, usuarioSAP:'ABLIMA'},
+  {id:2, nome:'Carlos Mendes',       nome1:'Carlos',      sobrenome:'Mendes',    area:'RTP',         cargo:'', admin:true,  usuarioSAP:'CMENDES'},
+  {id:3, nome:'Fernanda Souza',      nome1:'Fernanda',    sobrenome:'Souza',     area:'Suprimentos', cargo:'', admin:false, usuarioSAP:'FSOUZA'},
+  {id:4, nome:'Ricardo Oliveira',    nome1:'Ricardo',     sobrenome:'Oliveira',  area:'Suprimentos', cargo:'', admin:true,  usuarioSAP:'ROLIVEIRA'},
+  {id:5, nome:'Juliana Pereira',     nome1:'Juliana',     sobrenome:'Pereira',   area:'MIRO',        cargo:'', admin:true,  usuarioSAP:'JPEREIRA'},
+  {id:6, nome:'Marcos Alves',        nome1:'Marcos',      sobrenome:'Alves',     area:'MIGO',        cargo:'', admin:true,  usuarioSAP:'MALVES'},
+  {id:7, nome:'Patrícia Costa',      nome1:'Patrícia',    sobrenome:'Costa',     area:'FIN',         cargo:'', admin:false, usuarioSAP:'PCOSTA'},
+  {id:8, nome:'Diego Ferreira',      nome1:'Diego',       sobrenome:'Ferreira',  area:'FIN',         cargo:'', admin:true,  usuarioSAP:'DFERREIRA'},
+];
+let currentUser = null; // usuário logado
+
+
+const seed=[
+  {id:1,isSeed:true,num:'000123',forn:'Metalúrgica São Paulo Ltda',val:48500,status:'Pendente',venc:'2026-01-28',emissao:'2026-01-10',pc:'4500123456',areas:['RTP','Suprimentos','MIRO'],
+   msgs:[{area:'Suprimentos',txt:'PO #4500123456 aprovada. Aguardando MIGO para liberação.',hora:'08:30 — 18/01/2026'},
+         {area:'MIRO',txt:'NF recebida, aguardando conferência de itens com RTP antes de lançar.',hora:'09:15 — 18/01/2026'}],
+   etapas:{RTP:'ok',SUP:'ok',MIRO:'alerta',MIGO:'',FIN:''}},
+  {id:2,isSeed:true,num:'000456',forn:'Distribuidora Central Norte',val:12300.50,status:'Pago',venc:'2026-01-15',emissao:'2026-01-05',pc:'4500098712',areas:['MIGO','FIN'],
+   msgs:[{area:'MIGO',txt:'Mercadoria recebida e conferida. Lançado no sistema.',hora:'14:00 — 14/01/2026'},
+         {area:'FIN',txt:'Pagamento processado. NF quitada.',hora:'16:30 — 15/01/2026'}],
+   etapas:{RTP:'ok',SUP:'ok',MIRO:'ok',MIGO:'ok',FIN:'ok'}},
+  {id:3,isSeed:true,num:'000789',forn:'TechParts Indústria S/A',val:97600,status:'Pendente',venc:'2026-01-30',emissao:'2026-01-12',pc:'4500201344',areas:['RTP','MIRO','FIN'],
+   msgs:[{area:'RTP',txt:'Divergência na quantidade de itens recebidos vs. NF. Abrindo ocorrência.',hora:'10:00 — 17/01/2026'},
+         {area:'MIRO',txt:'Bloqueado. Aguardando resolução da divergência apontada por RTP.',hora:'11:20 — 17/01/2026'},
+         {area:'FIN',txt:'Pagamento suspenso até regularização.',hora:'11:45 — 17/01/2026'}],
+   etapas:{RTP:'alerta',SUP:'ok',MIRO:'',MIGO:'',FIN:''}},
+  {id:4,isSeed:true,num:'000321',forn:'Logística Global Express',val:5800,status:'Pendente',venc:'2026-02-05',emissao:'2026-01-20',pc:'4500315678',areas:['Suprimentos','MIRO'],
+   msgs:[],etapas:{RTP:'ok',SUP:'alerta',MIRO:'',MIGO:'',FIN:''}},
+];
+const seedN=[
+  {tipo:'warn',ico:'⚠',title:'Divergência em NF #000789',desc:'RTP apontou divergência de quantidade. Ação necessária em MIRO e CAP.',nf:'000789',hora:'Hoje, 11:45',lida:false,area:'RTP',destinatario:null},
+  {tipo:'info',ico:'💬',title:'Nova mensagem em NF #000123',desc:'MIRO aguarda conferência de itens com RTP antes do lançamento.',nf:'000123',hora:'Hoje, 09:15',lida:false,area:'MIRO',destinatario:'Juliana Pereira'},
+  {tipo:'success',ico:'✅',title:'NF #000456 quitada',desc:'Pagamento processado com sucesso pelo CAP.',nf:'000456',hora:'Ontem, 16:30',lida:false,area:'FIN',destinatario:null},
+  {tipo:'info',ico:'📋',title:'NF #000321 aguarda MIRO',desc:'Suprimentos aguarda lançamento no MIRO.',nf:'000321',hora:'Ontem, 08:00',lida:true,area:'MIRO',destinatario:null},
+];
+
+
+// ── PERÍODO FILTER ──
+function getPeriod(viewId){
+  const de  = document.getElementById(viewId+'-dt-de');
+  const ate = document.getElementById(viewId+'-dt-ate');
+  return {
+    de:  de  && de.value  ? de.value  : null,
+    ate: ate && ate.value ? ate.value : null
+  };
+}
+function clearPeriod(viewId){
+  const de  = document.getElementById(viewId+'-dt-de');
+  const ate = document.getElementById(viewId+'-dt-ate');
+  if(de)  de.value  = '';
+  if(ate) ate.value = '';
+  const map = {dash:'renderDash',nfs:'renderNFTable',hist:'renderHistorico',rel:'renderRelatorios'};
+  if(map[viewId]) window[map[viewId]]();
+}
+function inPeriod(emissao, period){
+  if(!period.de && !period.ate) return true;
+  if(!emissao) return false;
+  if(period.de  && emissao < period.de)  return false;
+  if(period.ate && emissao > period.ate) return false;
+  return true;
+}
+function renderDashFilter()  { renderDash(); }
+function renderNfsFilter()   { renderNFTable(); }
+
+
+// ── EXPORTAR NFs (respeita filtros ativos) ──
+function exportarNFs(){
+  // Re-apply same filter logic from renderNFTable to get current list
+  const s      = document.getElementById('search-nf').value.toLowerCase();
+  const spc    = document.getElementById('search-pc')?.value.toLowerCase() || '';
+  const sf     = document.getElementById('f-status').value;
+  const af     = document.getElementById('f-area').value;
+  const cf     = document.getElementById('f-criador').value;
+  const pn     = getPeriod('nfs');
+  const vencDe  = document.getElementById('nfs-venc-de')?.value  || null;
+  const vencAte = document.getElementById('nfs-venc-ate')?.value || null;
+  const diasMinV = document.getElementById('nfs-dias-min')?.value;
+  const diasMaxV = document.getElementById('nfs-dias-max')?.value;
+  const diasMin = diasMinV !== '' && diasMinV !== undefined ? parseInt(diasMinV) : null;
+  const diasMax = diasMaxV !== '' && diasMaxV !== undefined ? parseInt(diasMaxV) : null;
+
+  const list = nfs.filter(n => {
+    if(n.status === 'Pago') return false;
+    if(!inPeriod(n.emissao, pn)) return false;
+    if(s && !n.num.includes(s) && !n.forn.toLowerCase().includes(s)) return false;
+    if(spc && !(n.pc||'').toLowerCase().includes(spc)) return false;
+    if(sf && n.status !== sf) return false;
+    if(af && etapaAtual(n) !== af) return false;
+    if(cf && (n.criador||'') !== cf) return false;
+    const venc = calcVenc(n.emissao);
+    if(vencDe  && (!venc || venc < vencDe))  return false;
+    if(vencAte && (!venc || venc > vencAte)) return false;
+    const dias = diasAberto(n.emissao)||0;
+    if(diasMin !== null && dias < diasMin) return false;
+    if(diasMax !== null && dias > diasMax) return false;
+    return true;
+  });
+
+  if(!list.length){ showToast('Nenhuma NF para exportar com os filtros aplicados.',''); return; }
+
+  // Build Excel data
+  const headers = [
+    'Nº NF','Fornecedor','Pedido de Compra','Valor (BRL)',
+    'Data Emissão','Vencimento','Dias em Aberto',
+    'Status','Etapa Atual','Áreas Envolvidas',
+    'Status MIGO','MIRO / Doc','Doc Pagamento',
+    'Forma de Pagamento','Condições Pgto.',
+    'Criador do Pedido','Requisitante','Depósito','Centro',
+    'Adiantamento ECC','Possível Duplicidade','Qtd. Mensagens'
+  ];
+
+  const rows = list.map(n => [
+    n.num,
+    n.forn,
+    n.pc || '',
+    parseFloat(n.val)||0,
+    fdate(n.emissao),
+    fdate(calcVenc(n.emissao)),
+    diasAberto(n.emissao)||0,
+    n.status,
+    etapaAtual(n)||'',
+    n.areas ? n.areas.join(', ') : '',
+    n.statusMigo||'',
+    n.miro||'',
+    n.docPgto||'',
+    n.formaPgto||'',
+    n.condPgto||'',
+    n.criador||'',
+    n.requisitante||'',
+    n.deposito||'',
+    n.centro||'',
+    n.adiant||'',
+    n.posDup||'',
+    (n.msgs||[]).length
+  ]);
+
+  const wsData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:12},{wch:40},{wch:15},{wch:15},{wch:14},{wch:14},
+    {wch:14},{wch:12},{wch:14},{wch:30},{wch:18},{wch:16},
+    {wch:16},{wch:20},{wch:16},{wch:20},{wch:25},{wch:15},{wch:15},
+    {wch:25},{wch:25},{wch:12}
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Notas Fiscais');
+
+  const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  XLSX.writeFile(wb, 'GestaoNF_Export_' + hoje + '.xlsx');
+  showToast(list.length + ' NFs exportadas com sucesso!', 'success');
+}
+
+function limparTodosFiltros(){
+  // Emissão
+  const de  = document.getElementById('nfs-dt-de');
+  const ate = document.getElementById('nfs-dt-ate');
+  if(de)  de.value  = '';
+  if(ate) ate.value = '';
+  // Vencimento
+  const vde  = document.getElementById('nfs-venc-de');
+  const vate = document.getElementById('nfs-venc-ate');
+  if(vde)  vde.value  = '';
+  if(vate) vate.value = '';
+  // Dias em aberto
+  const mn = document.getElementById('nfs-dias-min');
+  const mx = document.getElementById('nfs-dias-max');
+  if(mn) mn.value = '';
+  if(mx) mx.value = '';
+  // Busca e selects
+  const search = document.getElementById('search-nf');
+  if(search) search.value = '';
+  const searchPc = document.getElementById('search-pc');
+  if(searchPc) searchPc.value = '';
+  const status = document.getElementById('f-status');
+  if(status) status.value = '';
+  const area = document.getElementById('f-area');
+  if(area) area.value = '';
+  const criador = document.getElementById('f-criador');
+  if(criador) criador.value = '';
+  const req = document.getElementById('f-req');
+  if(req) req.value = '';
+  const dep = document.getElementById('f-dep');
+  if(dep) dep.value = '';
+  const pc = document.getElementById('f-pc');
+  if(pc) pc.value = '';
+  const depto = document.getElementById('f-depto');
+  if(depto) depto.value = '';
+  const adminOnly = document.getElementById('f-admin-only');
+  if(adminOnly) adminOnly.checked = false;
+  // Reset sort
+  nfSort = {campo:'', dir:''};
+  ['nome-az','nome-za','dias-desc','dias-asc','val-desc','val-asc'].forEach(k=>{
+    const el = document.getElementById('nf-sort-'+k);
+    if(el) el.classList.remove('active');
+  });
+  renderNFTable();
+  showToast('Filtros limpos!','success');
+}
+
+function limparTodosFiltros(){
+  ['nfs-dt-de','nfs-dt-ate','nfs-venc-de','nfs-venc-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['nfs-dias-min','nfs-dias-max'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['search-nf','search-pc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-status','f-area','f-criador','f-req','f-dep','f-depto','f-pc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const adminOnly=document.getElementById('f-admin-only');if(adminOnly)adminOnly.checked=false;
+  nfSort={campo:'',dir:''};
+  ['nome-az','nome-za','dias-desc','dias-asc','val-desc','val-asc'].forEach(k=>{const el=document.getElementById('nf-sort-'+k);if(el)el.classList.remove('active');});
+  renderNFTable();
+  showToast('Filtros limpos!','success');
+}
+
+function limparVenc(){
+  const de  = document.getElementById('nfs-venc-de');
+  const ate = document.getElementById('nfs-venc-ate');
+  if(de)  de.value  = '';
+  if(ate) ate.value = '';
+  renderNFTable();
+}
+function limparDias(){
+  const mn = document.getElementById('nfs-dias-min');
+  const mx = document.getElementById('nfs-dias-max');
+  if(mn) mn.value = '';
+  if(mx) mx.value = '';
+  renderNFTable();
+}
+
+
+function renderHistFilter()  { renderHistorico(); }
+function renderRelFilter()   { renderRelatorios(); }
+
+
+// ── EVENT DELEGATION: handle all data-open clicks ──
+document.addEventListener('click', function(e){
+  const el = e.target.closest('[data-open]');
+  if(el){
+    e.stopPropagation();
+    openModal(el.getAttribute('data-open'));
+  }
+});
+
+
+// ══════════════════════════════════════════════════════
+// FIREBASE CONFIG
+// ══════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBaWlNBg1pWe8sMSKbZGdWWPLHZWET8890",
+  authDomain: "danfelproject.firebaseapp.com",
+  databaseURL: "https://danfelproject-default-rtdb.firebaseio.com",
+  projectId: "danfelproject",
+  storageBucket: "danfelproject.firebasestorage.app",
+  messagingSenderId: "474832580279",
+  appId: "1:474832580279:web:61055352610d4f1a03a732"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.database();
+
+// ══════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════
+function fazerLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('login-err');
+  if(!email || !senha){ mostrarErroLogin('Preencha e-mail e senha.'); return; }
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  err.classList.remove('show');
+  auth.signInWithEmailAndPassword(email, senha)
+    .catch(e => {
+      btn.disabled = false; btn.textContent = 'Entrar';
+      const msgs = {
+        'auth/user-not-found':    'Usuário não encontrado.',
+        'auth/wrong-password':    'Senha incorreta.',
+        'auth/invalid-email':     'E-mail inválido.',
+        'auth/too-many-requests': 'Muitas tentativas. Tente mais tarde.'
+      };
+      mostrarErroLogin(msgs[e.code] || 'Erro ao entrar: ' + e.message);
+    });
+}
+
+function mostrarErroLogin(msg){
+  const err = document.getElementById('login-err');
+  err.textContent = msg; err.classList.add('show');
+}
+
+function fazerLogout(){
+  auth.signOut();
+}
+
+// Enter key on login
+document.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none'){
+    fazerLogin();
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// AUTH STATE — controla acesso
+// ══════════════════════════════════════════════════════
+auth.onAuthStateChanged(user => {
+  if(user){
+    // Logged in
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('user-display').textContent = user.email.split('@')[0].toUpperCase();
+    iniciarApp(user);
+  } else {
+    // Not logged in — show login screen
+    document.getElementById('login-screen').style.display = 'flex';
+    const btn = document.getElementById('login-btn');
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// FIREBASE REALTIME SYNC
+// ══════════════════════════════════════════════════════
+let _fbUnsubNFs     = null;
+let _fbUnsubNotifs  = null;
+let _fbUnsubFuncs   = null;
+let _fbUser         = null;
+let _importing      = false;
+const OWNER_EMAILS  = ['danfelpiphone@gmail.com', 'danfelpiphone@gamil.com', 'daniel.jorge@mills.com.br'];
+
+function iniciarApp(user){
+  _fbUser = user;
+
+  // Sync NFs
+  if(_fbUnsubNFs) _fbUnsubNFs();
+  // Version-based reload: only reload when nfsVersion changes
+  let _lastNfsVersion = 0;
+  db.ref('meta').on('value', snap => {
+    const meta = snap.val() || {};
+    if(meta.importing){
+      if(!_importing) showToast('Importação em andamento, aguarde...','');
+      return;
+    }
+    // Only reload if nfsVersion changed (new import completed)
+    if(!_importing && meta.nfsVersion && meta.nfsVersion !== _lastNfsVersion){
+      _lastNfsVersion = meta.nfsVersion;
+      carregarNFsDoFirebase();
+    }
+  });
+
+  // Real-time: individual NF changes (messages, etapas)
+  db.ref('nfs').on('child_changed', snap => {
+    if(_importing) return;
+    const n = snap.val();
+    if(!n) return;
+    n.msgs = n.msgs||[];
+    const idx = nfs.findIndex(x=>x.num===n.num && x.forn===n.forn);
+    if(idx>=0){ nfs[idx]=n; refresh(); }
+    else { nfs.push(n); refresh(); }
+  });
+
+  // Arquivos sync
+  db.ref('arquivos').on('value', snap => {
+    const data = snap.val();
+    arquivosFirebase = data ? Object.values(data).sort((a,b)=>b.importadoEm.localeCompare(a.importadoEm)) : [];
+    if(document.getElementById('view-arquivos')?.classList.contains('active')){ renderArquivos(); aplicarPermissoes(); }
+  });
+
+  // Initial load
+  carregarNFsDoFirebase();
+
+  // Sync Notificações
+  if(_fbUnsubNotifs) _fbUnsubNotifs();
+  _fbUnsubNotifs = db.ref('notificacoes').on('value', snap => {
+    const data = snap.val();
+    notifs = data ? Object.values(data).sort((a,b)=>b.ts-a.ts) : [];
+    const u = notifsDoUsuario().filter(n=>!n.lida).length;
+    const badge = document.getElementById('nbadge');
+    badge.textContent = u||''; badge.style.display = u?'':'none';
+    if(document.getElementById('view-notif')?.classList.contains('active')) renderNotifs();
+  });
+
+  // Sync Funcionários
+  if(_fbUnsubFuncs) _fbUnsubFuncs();
+  _fbUnsubFuncs = db.ref('funcionarios').on('value', snap => {
+    const data = snap.val();
+    funcionarios = data ? Object.values(data) : [];
+    popularUserSwitcher();
+    atualizarFuncionarios();
+  });
+
+  // Load arquivos from Firebase
+  db.ref('arquivos').once('value').then(snap => {
+    const data = snap.val();
+    if(data) arquivosFirebase = Object.values(data).sort((a,b)=>b.importadoEm.localeCompare(a.importadoEm));
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// SAVE TO FIREBASE
+// ══════════════════════════════════════════════════════
+
+
+function aplicarPermissoes(){
+  const owner = isOwner();
+
+  // Import Excel button (NF tab — hidden for all, import is via Dashboard)
+  const btnImport = document.getElementById('btn-import-nf');
+  if(btnImport) btnImport.style.display = 'none';
+
+  // Drop zone — visible to all, enabled only for owners
+  const dz = document.getElementById('drop-zone');
+  if(dz){
+    dz.style.pointerEvents = owner ? '' : 'none';
+    dz.style.opacity       = owner ? '' : '0.5';
+    dz.title               = owner ? '' : 'Apenas o administrador pode importar';
+    dz.style.cursor        = owner ? 'pointer' : 'not-allowed';
+  }
+
+  // Limpar Firebase — visível a todos, habilitado só para owners
+  const btnFb = document.querySelector('[onclick="limparFirebase()"]');
+  if(btnFb){
+    btnFb.style.display  = '';
+    btnFb.disabled       = !owner;
+    btnFb.style.opacity  = owner ? '' : '0.5';
+    btnFb.style.cursor   = owner ? '' : 'not-allowed';
+    btnFb.title          = owner ? '' : 'Apenas o administrador pode limpar o Firebase';
+  }
+
+  // Limpar dados locais — visível a todos, habilitado só para owners
+  const btnLocal = document.querySelector('[onclick="limparDados()"]');
+  if(btnLocal){
+    btnLocal.style.display = '';
+    btnLocal.disabled      = !owner;
+    btnLocal.style.opacity = owner ? '' : '0.5';
+    btnLocal.style.cursor  = owner ? '' : 'not-allowed';
+    btnLocal.title         = owner ? '' : 'Apenas o administrador pode limpar os dados';
+  }
+
+  // Modo Teste — visível só para owners
+  const modoTeste = document.getElementById('modo-teste');
+  if(modoTeste) modoTeste.parentElement.style.display = owner ? '' : 'none';
+}
+
+function isOwner(){
+  if(!_fbUser) return false;
+  return OWNER_EMAILS.some(o => _fbUser.email.toLowerCase() === o.toLowerCase());
+}
+
+function carregarNFsDoFirebase(){
+  showToast('Carregando dados...','');
+  db.ref('nfs').once('value').then(snap => {
+    const data = snap.val();
+    nfs = data ? Object.values(data).map(n=>({...n,msgs:n.msgs||[]})) : [];
+    refresh();
+    showToast('Dados carregados: '+nfs.length+' NFs','success');
+  });
+}
+
+function salvarNFFirebase(nf){
+  db.ref('nfs/' + nfKey(nf)).set(nf);
+}
+
+function nfKey(n){
+  // Consistent key: num + cleaned forn (fixed 25 chars)
+  const num  = String(n.num||'').replace(/[^a-zA-Z0-9]/g,'_');
+  const forn = String(n.forn||'').normalize('NFD').replace(/[^\w]/g,'_').substring(0,25);
+  return (num + '__' + forn).substring(0,80);
+}
+
+function salvarTodasNFsFirebase(){
+  return new Promise(resolve => {
+    const BATCH = 100;
+    const entries = nfs.map(n => [nfKey(n), n]);
+    let i = 0;
+    function nextBatch(){
+      if(i >= entries.length){ resolve(); return; }
+      const batch = entries.slice(i, i+BATCH);
+      const updates = {};
+      batch.forEach(([k,v]) => { updates['nfs/'+k] = v; });
+      db.ref().update(updates)
+        .then(() => { i += BATCH; setTimeout(nextBatch, 100); })
+        .catch(() => { i += BATCH; setTimeout(nextBatch, 200); }); // skip failed batch
+    }
+    nextBatch();
+  });
+}
+
+function salvarNotifFirebase(notif){
+  notif.ts = Date.now();
+  db.ref('notificacoes').push(notif);
+}
+
+function salvarFuncionarioFirebase(f){
+  const key = 'func_' + f.id;
+  db.ref('funcionarios/' + key).set(f);
+}
+
+function removerFuncionarioFirebase(id){
+  db.ref('funcionarios/func_' + id).remove();
+}
+
+let arquivosFirebase = [];
+
+function salvarArquivoFirebase(arq){
+  db.ref('arquivos/' + arq.id).set(arq);
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{ if(document.getElementById('view-cfg').classList.contains('active')) renderCfgList(); });
+
+window.onload=()=>{
+  setupDrop();
+  document.getElementById('excel-input').addEventListener('change',e=>{if(e.target.files[0])importFile(e.target.files[0]);});
+  // Auth state handles app init
+};
+
+function refresh(){
+  updateStats(); renderDash(); updateEtapasStrip(); popularCriadores(); renderNFTable(); renderNotifs(); renderHistoricoKPIs();
+  const u=notifsDoUsuario().filter(n=>!n.lida).length;
+  const b=document.getElementById('nbadge');
+  b.textContent=u||''; b.style.display=u?'':'none';
+}
+
+const vmap={dashboard:'Dashboard — Controle de Notas Fiscais',nfs:'NFs Pendentes',notif:'Central de Notificações',historico:'Pagamentos — Notas Fiscais Pagas',relatorios:'Relatórios',arquivos:'Arquivos — Gestão de Importações',cfg:'Configurações — Usuários e Permissões'};
+function showView(v,btn){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.snav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  if(btn)btn.classList.add('active');
+  document.getElementById('page-title').textContent=vmap[v]||'';
+  if(v==='notif'){markAllRead();}
+  if(v==='cfg'){window.scrollTo(0,0);renderCfgList();}
+  if(v==='historico'){renderHistorico();renderHistoricoKPIs();}
+  if(v==='arquivos'){renderArquivos();}
+  if(v==='relatorios'){renderRelatorios();renderRelRankings();renderSLA();}
+}
+
+function updateStats(){
+  document.getElementById('s-pagas').textContent=nfs.filter(n=>n.status==='Pago').length;
+  renderHistoricoKPIs();
+  document.getElementById('s-pend').textContent=nfs.filter(n=>n.status==='Pendente').length;
+  document.getElementById('s-bloq').textContent=nfs.filter(n=>n.status!=='Pago'&&(()=>{const d=diasAberto(n.emissao);return d!==null&&d>=25;})()).length;
+  document.getElementById('s-total').textContent=nfs.length;
+  document.getElementById('nf-cnt').textContent=nfs.filter(n=>n.status!=='Pago').length+' registro'+(nfs.filter(n=>n.status!=='Pago').length!==1?'s':'');
+}
+
+
+function calcVenc(emissao){
+  if(!emissao) return '';
+  try{
+    const d = new Date(emissao+'T12:00:00');
+    if(!validDate(d)) return '';
+    d.setDate(d.getDate()+30);
+    return d.toISOString().split('T')[0];
+  }catch(e){ return ''; }
+}
+
+function validDate(d){ return d instanceof Date && !isNaN(d.getTime()); }
+
+function diasAberto(emissao){
+  if(!emissao || emissao==='') return null;
+  try {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const em   = new Date(emissao+'T12:00:00');
+    if(!validDate(em)) return null;
+    const diff = Math.floor((hoje - em)/(1000*60*60*24));
+    return isNaN(diff) ? null : diff;
+  } catch(e){ return null; }
+}
+function diasHTML(emissao){
+  const d = diasAberto(emissao);
+  if(d===null || isNaN(d)) return '<span class="dias-normal">0</span>';
+  const cls = d>=25 ? 'dias-alerta' : 'dias-normal';
+  return `<span class="${cls}">${d}</span>`;
+}
+
+function areasTagsHTML(nf){
+  // Normalize etapas: map old key 'Suprimentos' → 'SUP'
+  const raw = nf.etapas || {};
+  const et  = {};
+  Object.entries(raw).forEach(([k,v])=>{
+    const nk = k==='Suprimentos'?'SUP':k==='CAP'?'FIN':k;
+    et[nk] = v;
+  });
+  const dias    = diasAberto(nf.emissao);
+  const vencida = dias !== null && dias >= 25;
+  return AREAS.filter(a => et[a] !== undefined && et[a] !== '').map(a => {
+    const st = et[a];
+    if(st === 'ok')     return '<span class="area-tag-ok">'+a+'</span>';
+    if(st === 'alerta') return '<span class="area-tag-alerta'+(vencida?' piscando':'')+'">'+a+'</span>';
+    return '<span class="area-tag-none">'+a+'</span>';
+  }).join('');
+}
+
+// Retorna a etapa atual (alerta) de uma NF
+function etapaAtual(n){
+  const raw = n.etapas || {};
+  const et  = {};
+  Object.entries(raw).forEach(([k,v])=>{ const nk=k==='Suprimentos'?'SUP':k==='CAP'?'FIN':k; et[nk]=v; });
+  for(const a of AREAS){
+    if(et[a] === 'alerta') return a;
+  }
+  return '';
+}
+
+// Popula o dropdown de Criador do Pedido
+function popularCriadores(){
+  const sel = document.getElementById('f-criador');
+  const cur = sel.value;
+  const pendentes = nfs.filter(n=>n.status!=='Pago');
+  const lista = [...new Set(pendentes.map(n=>n.criador||'').filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Comprador</option>' +
+    lista.map(cr=>`<option${cr===cur?' selected':''}>${cr}</option>`).join('');
+
+  // Populate Requisitantes
+  const reqSel = document.getElementById('f-req');
+  if(reqSel){
+    const curReq = reqSel.value;
+    const reqs = [...new Set(pendentes.map(n=>n.requisitante||'').filter(Boolean))].sort();
+    reqSel.innerHTML = '<option value="">Requisitante</option>' +
+      reqs.map(r=>`<option${r===curReq?' selected':''}>${r}</option>`).join('');
+  }
+
+  // Populate Depositos
+  const depSel = document.getElementById('f-dep');
+  if(depSel){
+    const curDep = depSel.value;
+    const deps = [...new Set(pendentes.map(n=>n.deposito||'').filter(Boolean))].sort();
+    depSel.innerHTML = '<option value="">Depósito</option>' +
+      deps.map(d=>`<option${d===curDep?' selected':''}>${d}</option>`).join('');
+  }
+
+  // Populate Departamento from funcionarios
+  const deptoSel = document.getElementById('f-depto');
+  if(deptoSel){
+    const curDepto = deptoSel.value;
+    const deptos = [...new Set(funcionarios.map(f=>f.area||'').filter(Boolean))].sort();
+    deptoSel.innerHTML = '<option value="">Departamento</option>' +
+      deptos.map(d=>`<option${d===curDepto?' selected':''}>${d}</option>`).join('');
+  }
+}
+
+function badge(s){
+  const m={Pago:['pago','✓'],Pendente:['pendente','!']};
+  const[c,i]=m[s]||['pendente','?'];
+  return`<span class="badge ${c}">${i} ${s}</span>`;
+}
+function fdate(d){
+  if(!d||d==='') return '—';
+  try {
+    const dt = new Date(d+'T12:00:00');
+    if(!validDate(dt)) return '—';
+    return dt.toLocaleDateString('pt-BR');
+  } catch(e){ return '—'; }
+}
+function fval(v){return'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});}
+
+function setHistSort(campo, dir){
+  histSort = {campo, dir};
+  ['nome-az','nome-za','val-desc','val-asc'].forEach(k=>{
+    const el=document.getElementById('hist-sort-'+k);
+    if(el) el.classList.remove('active');
+  });
+  const active=document.getElementById(`hist-sort-${campo}-${dir}`);
+  if(active) active.classList.add('active');
+  renderHistorico();
+}
+
+function setRelSort(campo, dir){
+  relSort = {campo, dir};
+  ['nome-az','nome-za','dias-desc','dias-asc','val-desc','val-asc'].forEach(k=>{
+    const el=document.getElementById('rel-sort-'+k);
+    if(el) el.classList.remove('active');
+  });
+  const active=document.getElementById(`rel-sort-${campo}-${dir}`);
+  if(active) active.classList.add('active');
+  renderRelFornecedores();
+}
+
+function setNFSort(campo, dir){
+  nfSort = {campo, dir};
+  ['nome-az','nome-za','dias-desc','dias-asc','val-desc','val-asc'].forEach(k=>{
+    const el=document.getElementById('nf-sort-'+k);
+    if(el) el.classList.remove('active');
+  });
+  const active=document.getElementById(`nf-sort-${campo}-${dir}`);
+  if(active) active.classList.add('active');
+  renderNFTable();
+}
+
+function setDashSort(campo, dir){
+  dashSort = {campo, dir};
+  // Update button states
+  ['nome-az','nome-za','val-desc','val-asc','dias-desc','dias-asc'].forEach(k=>{
+    const el = document.getElementById('sort-'+k);
+    if(el) el.classList.remove('active');
+  });
+  const active = document.getElementById(`sort-${campo}-${dir}`);
+  if(active) active.classList.add('active');
+  renderDash();
+}
+
+function updateEtapasStrip(){
+  const pendentes = nfs.filter(n=>n.status!=='Pago');
+  const total     = pendentes.length;
+  const ids = {SUP:'es-s', MIGO:'es-mi', MIRO:'es-mr', FIN:'es-c'};
+  const counts = {};
+  AREAS.forEach(a=>{
+    const cnt = pendentes.filter(n=>etapaAtual(n)===a).length;
+    counts[a] = cnt;
+    const el = document.getElementById(ids[a]);
+    if(el) el.textContent = cnt;
+  });
+  // Render summary card
+  const colors = {FIN:'#bb0000', MIRO:'#e76500', MIGO:'#6a1a75', Suprimentos:'#0854a0'};
+  const resumo = document.getElementById('es-resumo-body');
+  if(resumo){
+    resumo.innerHTML = AREAS.map(a=>{
+      const cnt = counts[a]||0;
+      const pct = total>0 ? Math.round(cnt/total*100) : 0;
+      return `<div class="resumo-line">
+        <span class="resumo-area" style="color:${colors[a]}">${a}</span>
+        <span><strong>${cnt}</strong><span class="resumo-pct">${pct}%</span></span>
+      </div>`;
+    }).join('');
+  }
+}
+
+
+function renderDash(){
+  const pd = getPeriod('dash');
+  const pendentes = nfs.filter(n => n.status !== 'Pago' && inPeriod(n.emissao, pd));
+  const tb = document.getElementById('dash-tbody');
+
+  if(!pendentes.length){
+    tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="eico">📂</div><h3>Nenhuma NF pendente</h3><p>Importe o relatório Excel para começar</p></div></td></tr>`;
+    document.getElementById('dash-cnt').textContent='0 fornecedores';
+    return;
+  }
+
+  // Group by fornecedor
+  const grupos = {};
+  pendentes.forEach(n => {
+    if(!grupos[n.forn]) grupos[n.forn] = [];
+    grupos[n.forn].push(n);
+  });
+
+  let fornecedores = Object.entries(grupos).map(([forn, nfList])=>{
+    const total = nfList.reduce((s,n)=>s+(parseFloat(n.val)||0),0);
+    const maxD  = Math.max(...nfList.map(n=>diasAberto(n.emissao)||0));
+    return {forn, nfList, total, maxD};
+  });
+  if(dashSort.campo==='nome'){
+    fornecedores.sort((a,b)=> dashSort.dir==='az' ? a.forn.localeCompare(b.forn) : b.forn.localeCompare(a.forn));
+  } else if(dashSort.campo==='val'){
+    fornecedores.sort((a,b)=> dashSort.dir==='desc' ? b.total-a.total : a.total-b.total);
+  } else if(dashSort.campo==='dias'){
+    fornecedores.sort((a,b)=> dashSort.dir==='desc' ? b.maxD-a.maxD : a.maxD-b.maxD);
+  }
+  document.getElementById('dash-cnt').textContent = fornecedores.length + ' fornecedor' + (fornecedores.length!==1?'es':'');
+
+  tb.innerHTML = fornecedores.map(r => {
+    const {forn, nfList, total, maxDias: mD} = r;
+    const qtd      = nfList.length;
+    const maxDias  = r.maxD;
+    const alerta   = maxDias >= 25;
+    const etapaSet = [...new Set(nfList.map(n => etapaAtual(n)).filter(Boolean))];
+    const goNFs = `showView('nfs', document.querySelector('.snav-btn:nth-child(3)')); setTimeout(()=>{document.getElementById('search-nf').value='${forn.replace(/'/g,"\'")}'; renderNFTable();}, 50)`;
+    return `<tr>
+      <td style="font-weight:700">${forn}</td>
+      <td style="text-align:center">
+        <span class="badge" style="background:#e4f0fb;color:var(--sap-blue);border-color:#a4caee">${qtd}</span>
+      </td>
+      <td>${fval(total)}</td>
+      <td style="text-align:center">
+        <span class="${alerta?'dias-alerta':'dias-normal'}">${maxDias}</span>
+      </td>
+      <td>${etapaSet.map(a=>`<span class="area-tag-alerta">${a}</span>`).join('')||'<span style="color:var(--muted)">—</span>'}</td>
+      <td>
+        <button class="sap-btn" onclick="${goNFs}">🔍 Ver NFs</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderNFTable(){
+  const s  = document.getElementById('search-nf').value.toLowerCase();
+  const sf = document.getElementById('f-status').value;
+  const af = document.getElementById('f-area').value;
+  const cf  = document.getElementById('f-criador').value;
+  const rf      = document.getElementById('f-req')?.value || '';
+  const df      = document.getElementById('f-dep')?.value || '';
+  const spc     = document.getElementById('search-pc')?.value.toLowerCase() || '';
+  const pcf     = document.getElementById('f-pc')?.value || '';
+  const deptoF  = document.getElementById('f-depto')?.value || '';
+  const adminOnly = document.getElementById('f-admin-only')?.checked || false;
+
+  const pn      = getPeriod('nfs');
+  const vencDe  = (document.getElementById('nfs-venc-de')?.value)  || null;
+  const vencAte = (document.getElementById('nfs-venc-ate')?.value) || null;
+  const diasMin = document.getElementById('nfs-dias-min')?.value !== '' ? parseInt(document.getElementById('nfs-dias-min')?.value) : null;
+  const diasMax = document.getElementById('nfs-dias-max')?.value !== '' ? parseInt(document.getElementById('nfs-dias-max')?.value) : null;
+
+  let list = nfs.filter(n => {
+    if(n.status === 'Pago') return false;
+    if(!inPeriod(n.emissao, pn)) return false;
+    if(s && !n.num.includes(s) && !n.forn.toLowerCase().includes(s)) return false;
+    if(spc && !(n.pc||'').toLowerCase().includes(spc)) return false;
+    if(sf && n.status !== sf) return false;
+    if(af && etapaAtual(n) !== af) return false;
+    if(cf && (n.criador||'') !== cf) return false;
+    // Filtro Vencimento
+    const venc = calcVenc(n.emissao);
+    if(vencDe  && (!venc || venc < vencDe))  return false;
+    if(vencAte && (!venc || venc > vencAte)) return false;
+    // Filtro Pedido de Compra
+    if(pcf === 'com' && !n.pc) return false;
+    if(pcf === 'sem' && n.pc) return false;
+    // Filtro Requisitante
+    if(rf && (n.requisitante||'') !== rf) return false;
+    // Filtro Depósito
+    if(df && (n.deposito||'') !== df) return false;
+    // Filtro Departamento: mostra NFs cujo requisitante pertence ao departamento selecionado
+    if(deptoF){
+      const funcReq = funcionarios.find(f => f.nome === n.requisitante || f.nome1 === n.requisitante);
+      if(!funcReq || (funcReq.area||'') !== deptoF) return false;
+    }
+    // Filtro Admin: mostra só NFs de requisitantes do departamento do admin logado
+    if(adminOnly && currentUser && currentUser.admin){
+      const funcReq = funcionarios.find(f => f.nome === n.requisitante || f.nome1 === n.requisitante);
+      if(!funcReq || (funcReq.area||'') !== (currentUser.area||'')) return false;
+    }
+    // Filtro Dias em Aberto
+    const dias = diasAberto(n.emissao)||0;
+    if(diasMin !== null && dias < diasMin) return false;
+    if(diasMax !== null && dias > diasMax) return false;
+    return true;
+  });
+
+  if(nfSort.campo==='nome'){
+    list.sort((a,b)=> nfSort.dir==='az' ? a.forn.localeCompare(b.forn) : b.forn.localeCompare(a.forn));
+  } else if(nfSort.campo==='dias'){
+    list.sort((a,b)=> nfSort.dir==='desc' ? (diasAberto(b.emissao)||0)-(diasAberto(a.emissao)||0) : (diasAberto(a.emissao)||0)-(diasAberto(b.emissao)||0));
+  } else if(nfSort.campo==='val'){
+    list.sort((a,b)=> nfSort.dir==='desc' ? b.val-a.val : a.val-b.val);
+  }
+
+  document.getElementById('nf-cnt').textContent=list.length+' registro'+(list.length!==1?'s':'');
+  const totalVal = list.reduce((s,n)=>s+(parseFloat(n.val)||0),0);
+  const totalEl  = document.getElementById('nf-total-val');
+  if(totalEl){
+    if(totalVal > 0){
+      totalEl.textContent = 'Total: ' + fval(totalVal);
+      totalEl.style.display='';
+    } else {
+      totalEl.style.display='none';
+    }
+  }
+  const tb=document.getElementById('nf-tbody');
+  if(!list.length){tb.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="eico">🔍</div><h3>Nenhum resultado</h3><p>Ajuste os filtros</p></div></td></tr>`;return;}
+  tb.innerHTML=list.map(n=>`<tr>
+    <td><span class="link-cell" data-open="${n.id}">${n.num}</span></td>
+    <td>${n.forn}</td><td>${n.pc||'—'}</td><td>${fval(n.val)}</td>
+    <td>${fdate(n.emissao)}</td><td>${fdate(calcVenc(n.emissao))}</td><td>${n.status==='Pago'?'<span class="dias-normal">0</span>':diasHTML(n.emissao)}</td>
+    <td>${badge(n.status)}</td>
+    <td>${areasTagsHTML(n)}</td>
+    <td style="text-align:center"><span class="badge" style="background:#f0f0f0;color:var(--muted);border-color:var(--border)">${n.msgs.length}</span></td>
+    <td><button class="sap-btn" data-open="${n.id}">📝 Detalhar</button></td>
+  </tr>`).join('');
+}
+
+const eico={ok:'✓',alerta:'!',erro:'✕','':'·'};
+function openModal(id){
+  const _id = typeof id === 'string' ? parseFloat(id) : id;
+  currentNF=nfs.find(n=>String(n.id)===String(_id));
+  if(!currentNF){ showToast('NF id='+id+' não encontrada. Total NFs:'+nfs.length,''); return; }
+  showToast('Abrindo NF #'+currentNF.num,'success');
+  document.getElementById('m-title').textContent=`Nota Fiscal #${currentNF.num}`;
+  document.getElementById('m-sub').textContent=currentNF.forn;
+  const n=currentNF;
+  document.getElementById('m-detail').innerHTML=`
+    <div class="dcell"><label>Número NF</label><div class="dval link">${n.num}</div></div>
+    <div class="dcell"><label>Status Pagamento</label><div class="dval">${badge(n.status)}</div></div>
+    <div class="dcell"><label>Nome PJ Emitente</label><div class="dval">${n.forn}</div></div>
+    <div class="dcell"><label>Valor Total da Nota</label><div class="dval mono">${fval(n.val)}</div></div>
+    <div class="dcell"><label>Data Emissão</label><div class="dval">${fdate(n.emissao)}</div></div>
+    <div class="dcell"><label>Vencimento (Emissão +30d)</label><div class="dval">${fdate(calcVenc(n.emissao))||'—'}</div></div>
+    <div class="dcell"><label>Pedido de Compra</label><div class="dval mono">${n.pc||'—'}</div></div>
+    <div class="dcell"><label>Criador do Pedido</label><div class="dval">${n.criador||'—'}</div></div>
+    <div class="dcell"><label>Status MIGO (col N)</label><div class="dval">${n.statusMigo||'—'}</div></div>
+    <div class="dcell"><label>MIRO / Doc (col O)</label><div class="dval mono">${n.miro||'—'}</div></div>
+    <div class="dcell"><label>Requisitante</label><div class="dval">${n.requisitante||'—'}</div></div>
+    <div class="dcell"><label>Forma de Pagamento</label><div class="dval">${n.formaPgto||'—'}</div></div>
+    <div class="dcell"><label>Departamento</label><div class="dval">${currentUser?currentUser.area:'—'}</div></div>
+    ${n.adiant?`<div class="dcell" style="border-top:2px solid var(--yellow)"><label>⚠ Adiantamento ECC</label><div class="dval" style="color:var(--yellow);font-weight:700">${n.adiant}</div></div>`:''}
+    ${n.posDup?`<div class="dcell" style="border-top:2px solid var(--red)"><label>⚠ Possível Duplicidade</label><div class="dval" style="color:var(--red);font-weight:700">${n.posDup}</div></div>`:''}
+    ${n.vlrRep?`<div class="dcell"><label>Valor NF x CNPJ Repetido</label><div class="dval mono">${n.vlrRep}</div></div>`:''}
+    ${n.dadosAdic?`<div class="dcell" style="grid-column:span 2"><label>Dados Adicionais</label><div class="dval">${n.dadosAdic}</div></div>`:''}
+    <div class="dcell" style="grid-column:span 2"><label>Etapa Atual</label><div class="dval">${areasTagsHTML(n)}</div></div>`;
+  const et=currentNF.etapas||{};
+  document.getElementById('etapas-flow').innerHTML=AREAS.map(a=>{const st=et[a]||'';return`<div class="etapa ${st}"><div class="etapa-dot">${eico[st]}</div><div class="etapa-name">${a}</div></div>`;}).join('');
+  atualizarFuncionarios();
+  renderMsgs();
+  // Move modal to end of body so it's always on top
+  const mo = document.getElementById('modal-ov');
+  document.body.appendChild(mo);
+  mo.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function renderMsgs(){
+  const el=document.getElementById('msg-list');
+  if(!currentNF.msgs.length){el.innerHTML=`<div style="text-align:center;padding:14px;color:var(--muted);font-size:12px">Nenhuma mensagem. Inicie a comunicação abaixo.</div>`;return;}
+  el.innerHTML=currentNF.msgs.map(m=>`<div class="message area-${m.area}">
+    <div class="msg-head"><span class="msg-area-tag">${m.area}</span>${m.func?`<span style="font-size:11px;font-weight:700;color:var(--text)">${m.func}</span>`:''}<span class="msg-time">${m.hora}</span></div>
+    <div class="msg-txt">${m.txt}</div></div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+function closeModal(e){if(e&&e.target!==document.getElementById('modal-ov'))return;document.getElementById('modal-ov').classList.remove('open');document.body.style.overflow='';currentNF=null;}
+
+function enviarMsg(){
+  if(!currentNF)return;
+  // Sender = logged user's area
+  const area     = currentUser ? currentUser.area : (document.getElementById('msg-area-dest')?.value||'Sistema');
+  const areaDest = document.getElementById('msg-area-dest')?.value || '';
+  const funcSel  = document.getElementById('msg-func');
+  const func     = funcSel?.value || '';
+  // Get destination employee email for notification
+  const funcOpt  = funcSel?.querySelector(`option[value="${func}"]`);
+  const funcEmail= funcOpt?.getAttribute('data-email') || '';
+  const txt=document.getElementById('msg-ta').value.trim();
+  if(!txt){showToast('Digite uma mensagem antes de enviar.');return;}
+  const now=new Date();
+  const hora=`${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')} — ${now.toLocaleDateString('pt-BR')}`;
+  currentNF.msgs.push({area,func,txt,hora});
+  salvarNFFirebase(currentNF);
+  const destFunc = document.getElementById('msg-func').value;
+  const novaNotif = {tipo:'info',ico:'💬',
+    title:`Nova mensagem em NF #${currentNF.num}`,
+    desc:`${area}${areaDest?' → '+areaDest:''}${func?' ('+func+')':''}: ${txt.substring(0,80)}${txt.length>80?'...':''}`,
+    nf:currentNF.num, hora:hora, lida:false,
+    area:areaDest||area,
+    destinatario: func||null,
+    destinatarioEmail: funcEmail||null,
+    remetente: currentUser?currentUser.nome:'',
+    remetenteArea: area,
+    etapaDest: areaDest||null};
+  notifs.unshift(novaNotif);
+  salvarNotifFirebase(novaNotif);
+  document.getElementById('msg-ta').value='';
+  renderMsgs(); renderNFTable(); renderDash();
+  showToast(`Mensagem enviada por ${area}`,'success');
+}
+
+function gerarEmail(){
+  if(!currentNF) return;
+  // Use logged user's area as sender; destination area from select
+  const area     = currentUser ? currentUser.area : (document.getElementById('msg-area-dest')?.value || 'Sistema');
+  const areaDest = document.getElementById('msg-area-dest')?.value || '';
+  const func     = document.getElementById('msg-func')?.value || '';
+  const txt      = document.getElementById('msg-ta')?.value.trim() || '';
+  const para     = areaDest || (currentNF.areas||[]).join(', ');
+
+  document.getElementById('e-subj').textContent =
+    `[GestãoNF] NF #${currentNF.num} — ${currentNF.status} — Ação Necessária`;
+  document.getElementById('e-para').textContent =
+    `${para}${func?' — Att.: '+func:''}`;
+  const msgExtra = txt ? ('\nMENSAGEM DE ' + area + ':\n' + txt + '\n') : '';
+  const corpo = [
+    'Prezados,',
+    '',
+    'Este e-mail e gerado automaticamente pelo sistema GestaoNF.',
+    '',
+    '--------------------------------------',
+    ' NOTA FISCAL : #' + currentNF.num,
+    ' STATUS      : ' + currentNF.status,
+    ' FORNECEDOR  : ' + currentNF.forn,
+    ' VALOR       : ' + fval(currentNF.val),
+    ' EMISSAO     : ' + fdate(currentNF.emissao),
+    ' PED. COMPRA : ' + (currentNF.pc||'---'),
+    ' ÁREAS       : ' + (currentNF.areas||[]).join(' | '),
+    '──────────────────────────────────────',
+    msgExtra,
+    'Solicitamos verificacao e as devidas tratativas para regularizacao desta NF.',
+    '',
+    'Atenciosamente,',
+    area + ' - Sistema GestaoNF'
+  ].join('\n');
+  document.getElementById('e-body').textContent = corpo;
+
+  // Move email modal to body top so it's always visible
+  const eo = document.getElementById('email-ov');
+  document.body.appendChild(eo);
+  eo.classList.add('open');
+}
+function closeEmail(e){if(e&&e.target!==document.getElementById('email-ov'))return;document.getElementById('email-ov').classList.remove('open');}
+function copiarEmail(){navigator.clipboard.writeText(document.getElementById('e-body').textContent).then(()=>showToast('E-mail copiado!','success'));}
+
+function notifsDoUsuario(){
+  if(!_fbUser) return [];
+  const email  = _fbUser.email.toLowerCase();
+  const owner  = OWNER_EMAILS.some(o=>email===o.toLowerCase());
+  const etapa  = currentUser ? (currentUser.etapa||currentUser.area||'') : '';
+  const isAdm  = currentUser ? !!currentUser.admin : false;
+
+  return notifs.filter(n=>{
+    // REGRA 1: Notificações de importação → só owners
+    if(n.somenteOwners) return owner;
+
+    // REGRA 2: Direcionada a usuário específico por e-mail → só esse usuário
+    if(n.destinatarioEmail) return n.destinatarioEmail.toLowerCase()===email;
+
+    // REGRA 3: Direcionada por nome → só esse usuário
+    if(n.destinatario && currentUser) return n.destinatario===currentUser.nome;
+
+    // REGRA 4: Notificação para uma etapa sem destinatário específico
+    // → Todos da etapa recebem
+    // → Admin da mesma etapa também recebe
+    if(n.area && currentUser){
+      if(etapa === n.area) return true;
+      if(isAdm && etapa === n.area) return true;
+    }
+    // REGRA 4b: Admin recebe notificações da sua etapa mesmo sem ser o destinatário
+    if(n.etapaDest && currentUser && isAdm && etapa === n.etapaDest && !n.destinatarioEmail) return true;
+
+    // REGRA 5: Sem área e sem destinatário → notificação geral (todos veem exceto somenteOwners)
+    if(!n.area && !n.destinatario && !n.destinatarioEmail && !n.somenteOwners) return true;
+
+    return false;
+  });
+}
+
+function renderNotifs(){
+  const el=document.getElementById('notif-list');
+  const lista = notifsDoUsuario();
+  if(!lista.length){el.innerHTML=`<div class="empty"><div class="eico">🔔</div><h3>Sem notificações para você</h3><p style="font-size:12px">${currentUser?'Nenhuma notificação direcionada ao seu perfil.':'Selecione um usuário no cabeçalho.'}</p></div>`;return;}
+  el.innerHTML=lista.map(n=>{
+    const nfObj = n.nf ? nfs.find(x=>x.num===n.nf) : null;
+    const oc = nfObj ? `onclick="abrirNotif(${nfObj.id},this)"` : '';
+    const cl = nfObj ? 'clicavel' : '';
+    return `<div class="notif-card ${n.lida?'':'unread'} ${cl}" ${oc}>
+    <div class="notif-ico ${n.tipo}">${n.ico}</div>
+    <div class="notif-body">
+      <div class="notif-row"><span class="notif-title">${n.title}</span><span class="notif-time">${n.hora}</span></div>
+      <div class="notif-desc">${n.desc} ${n.nf?`<span class="notif-nf">→ NF #${n.nf}</span>`:''}</div>
+    </div></div>`;
+  }).join('');
+}
+
+
+
+// ── HISTÓRICO ──
+function renderHistoricoKPIs(){
+  const pagas = nfs.filter(n=>n.status==='Pago');
+  document.getElementById('hist-total').textContent = pagas.length;
+  const soma = pagas.reduce((a,n)=>a+(parseFloat(n.val)||0),0);
+  document.getElementById('hist-valor').textContent = 'R$ '+soma.toLocaleString('pt-BR',{minimumFractionDigits:2});
+}
+
+function renderHistorico(){
+  const s = (document.getElementById('hist-search')||{value:''}).value.toLowerCase();
+  const ph = getPeriod('hist');
+  let pagas = nfs.filter(n=>n.status==='Pago' && inPeriod(n.emissao, ph) && (!s||n.num.includes(s)||n.forn.toLowerCase().includes(s)));
+  if(histSort.campo==='nome'){
+    pagas.sort((a,b)=> histSort.dir==='az' ? a.forn.localeCompare(b.forn) : b.forn.localeCompare(a.forn));
+  } else if(histSort.campo==='val'){
+    pagas.sort((a,b)=> histSort.dir==='desc' ? b.val-a.val : a.val-b.val);
+  }
+  const cnt = document.getElementById('hist-cnt');
+  if(cnt) cnt.textContent = pagas.length+' registro'+(pagas.length!==1?'s':'');
+  const tb = document.getElementById('hist-tbody');
+  if(!tb) return;
+  if(!pagas.length){
+    tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="eico">🗂</div><h3>Nenhuma NF paga ainda</h3><p>As NFs quitadas aparecerão aqui automaticamente</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = pagas.map(n=>`<tr>
+    <td><span class="link-cell" data-open="${n.id}">${n.num}</span></td>
+    <td>${n.forn}</td>
+    <td>${n.pc||'—'}</td>
+    <td>${fval(n.val)}</td>
+    <td>${fdate(n.venc)||'—'}</td>
+    <td>${fdate(n.emissao)}</td>
+    <td><button class="sap-btn" data-open="${n.id}">📝 Detalhar</button></td>
+  </tr>`).join('');
+}
+
+
+// ══════════════════════════════════════════════
+// SNAPSHOT ENGINE — persiste em localStorage
+// ══════════════════════════════════════════════
+const STORAGE_KEY  = 'gestaoNF_snapshots';
+const STORAGE_ARQ  = 'gestaoNF_arquivos';
+const STORAGE_NFS  = 'gestaoNF_nfs';
+const STORAGE_MSGS = 'gestaoNF_msgs'; // preserve msgs across sessions
+
+function salvarSnapshot(resumo){
+  const hoje = new Date().toISOString().split('T')[0];
+  const snap = {
+    data: hoje,
+    dataFmt: new Date().toLocaleDateString('pt-BR'),
+    hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    arquivo: resumo.arquivo,
+    qtdNova: resumo.qtdNova,
+    qtdAtual: resumo.qtdAtual,
+    qtdSemAlter: resumo.qtdSemAlter,
+    qtdIgnorada: resumo.qtdIgnorada,
+    // Foto do estado das NFs pendentes neste momento
+    estado: nfs.filter(n=>n.status!=='Pago').map(n=>({
+      num: n.num,
+      forn: n.forn,
+      val: n.val,
+      etapa: etapaAtual(n),
+      status: n.status,
+      emissao: n.emissao,
+      dias: diasAberto(n.emissao)||0
+    }))
+  };
+  try {
+    const lista = carregarSnapshots();
+    // Se já importou hoje, sobrescreve
+    const idx = lista.findIndex(s=>s.data===hoje);
+    if(idx>=0) lista[idx]=snap; else lista.push(snap);
+    // Manter últimos 90 dias
+    lista.sort((a,b)=>b.data.localeCompare(a.data));
+    const trimmed = lista.slice(0,90);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+  } catch(e){ console.warn('localStorage indisponível:', e); }
+}
+
+function carregarSnapshots(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e){ return []; }
+}
+
+function salvarNFsPersistidos(){ /* handled by Firebase */ }
+
+function carregarNFsPersistidos(){ return null; /* handled by Firebase */ }
+
+function limparSnapshots(){
+  if(!confirm('Tem certeza que deseja limpar todo o histórico de importações?')) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+  renderRelatorios();
+  showToast('Histórico de importações removido.','');
+}
+
+// ══════════════════════════════════════════════
+// RELATÓRIOS
+// ══════════════════════════════════════════════
+const ETAPA_COLORS = {
+  Suprimentos:'#0854a0', RTP:'#107e3e', MIGO:'#6a1a75', MIRO:'#e76500', FIN:'#bb0000'
+};
+
+function renderRelatorios(){
+  renderSLA();
+  renderRelEtapas();
+  renderRelMedia();
+  renderRelFornecedores();
+  renderRelSnapshots();
+}
+
+function renderRelEtapas(){
+  const el   = document.getElementById('rel-etapa-bars');
+  const note = document.getElementById('rel-etapa-note');
+  const pr2  = getPeriod('rel');
+  const pendentes = nfs.filter(n=>n.status!=='Pago' && inPeriod(n.emissao, pr2));
+  if(!pendentes.length){ el.innerHTML='<div class="rel-empty">Sem NFs pendentes.</div>'; return; }
+
+  // Hoje
+  const total = pendentes.length;
+  const hoje = {};
+  AREAS.forEach(a=>hoje[a]=0);
+  pendentes.forEach(n=>{ const e=etapaAtual(n); if(e) hoje[e]=(hoje[e]||0)+1; });
+
+  // Buscar o último snapshot disponível (não necessariamente ontem)
+  el.innerHTML = '<div class="rel-empty" style="font-size:11px">Carregando comparativo...</div>';
+
+  const hojeISO = new Date().toISOString().split('T')[0];
+  carregarSnapshotsFirebase().then(snaps => {
+    // Pega o snapshot mais recente que NÃO seja de hoje
+    const snapOntem = snaps.find(s => s.data < hojeISO) || null;
+    return snapOntem;
+  }).then(snapOntem => {
+    const ontem = {};
+    AREAS.forEach(a => ontem[a] = 0);
+    if(snapOntem && snapOntem.resumo){
+      AREAS.forEach(a => ontem[a] = snapOntem.resumo[a]||0);
+      if(note) note.textContent = 'Comparando com ' + (snapOntem.dataFmt||ontemDate);
+    } else {
+      if(note) note.textContent = 'Sem snapshot de ontem para comparar.';
+    }
+
+    const maxV = Math.max(...AREAS.map(a=>hoje[a]), 1);
+
+    el.innerHTML = AREAS.map(a=>{
+      const v    = hoje[a]||0;
+      const ant  = ontem[a]||0;
+      const pct  = Math.round(v/maxV*100);
+      const pctTotal = total>0 ? Math.round(v/total*100) : 0;
+      const cor  = ETAPA_COLORS[a]||'#888';
+
+      // Delta vs ontem — menos NFs = melhor (etapa avançou)
+      let deltaHTML = '';
+      if(snapOntem && snapOntem.resumo){
+        const diff = v - ant;
+        if(diff < 0){
+          deltaHTML = '<span class="rel-delta melhor">▼ '+Math.abs(diff)+'</span>';
+        } else if(diff > 0){
+          deltaHTML = '<span class="rel-delta pior">▲ '+diff+'</span>';
+        } else {
+          deltaHTML = '<span class="rel-delta igual">= igual</span>';
+        }
+        // % change
+        if(ant > 0){
+          const pctDiff = Math.round(Math.abs(diff)/ant*100);
+          deltaHTML += '<span class="rel-delta '+(diff<0?'melhor':diff>0?'pior':'igual')+'" style="font-weight:400;margin-left:2px">('+pctDiff+'%)</span>';
+        }
+      }
+
+      return '<div class="rel-bar-row">' +
+        '<span class="rel-bar-label" title="'+a+'">'+a+'</span>' +
+        '<div class="rel-bar-track">' +
+          '<div class="rel-bar-fill" style="width:'+pct+'%;background:'+cor+'">' +
+            (pct>10 ? v+' NF' : '') +
+          '</div>' +
+        '</div>' +
+        '<span class="rel-bar-val">'+v+' ('+pctTotal+'%)</span>' +
+        deltaHTML +
+      '</div>';
+    }).join('');
+  }).catch(() => {
+    // Firebase not available — show current data without comparison
+    if(note) note.textContent = 'Sem conexão para comparar com ontem.';
+    const maxV = Math.max(...AREAS.map(a=>hoje[a]), 1);
+    el.innerHTML = AREAS.map(a=>{
+      const v = hoje[a]||0;
+      const pct = Math.round(v/maxV*100);
+      const pctTotal = total>0 ? Math.round(v/total*100) : 0;
+      const cor = ETAPA_COLORS[a]||'#888';
+      return '<div class="rel-bar-row">' +
+        '<span class="rel-bar-label">'+a+'</span>' +
+        '<div class="rel-bar-track"><div class="rel-bar-fill" style="width:'+pct+'%;background:'+cor+'">'+
+        (pct>10?v+' NF':'')+'</div></div>' +
+        '<span class="rel-bar-val">'+v+' ('+pctTotal+'%)</span>' +
+      '</div>';
+    }).join('');
+  });
+}
+
+function renderRelMedia(){
+  const el = document.getElementById('rel-media-bars');
+  const snaps = carregarSnapshots();
+  if(snaps.length < 2){ el.innerHTML='<div class="rel-empty">Importe ao menos 2 dias para calcular a média.</div>'; return; }
+  // Calcular média de NFs por etapa por dia
+  const somaEtapa = {}; AREAS.forEach(a=>somaEtapa[a]=0);
+  snaps.forEach(s=>{
+    const contSnap = {}; AREAS.forEach(a=>contSnap[a]=0);
+    (s.estado||[]).forEach(n=>{ if(n.etapa) contSnap[n.etapa]=(contSnap[n.etapa]||0)+1; });
+    AREAS.forEach(a=>somaEtapa[a]+=contSnap[a]);
+  });
+  const dias = snaps.length;
+  const maxMedia = Math.max(...AREAS.map(a=>somaEtapa[a]/dias), 1);
+  el.innerHTML = AREAS.map(a=>{
+    const media = (somaEtapa[a]/dias).toFixed(1);
+    const pct = Math.round((somaEtapa[a]/dias)/maxMedia*100);
+    const cor = ETAPA_COLORS[a]||'#888';
+    return `<div class="rel-bar-row">
+      <span class="rel-bar-label" title="${a}">${a}</span>
+      <div class="rel-bar-track">
+        <div class="rel-bar-fill" style="width:${pct}%;background:${cor}">${pct>8?media:''}</div>
+      </div>
+      <span class="rel-bar-val">${media}/dia</span>
+    </div>`;
+  }).join('');
+}
+
+function renderRelFornecedores(){
+  const tb = document.getElementById('rel-forn-tbody');
+  const pr = getPeriod('rel');
+  const pendentes = nfs.filter(n=>n.status!=='Pago' && inPeriod(n.emissao, pr));
+  if(!pendentes.length){ tb.innerHTML='<tr><td colspan="6"><div class="rel-empty">Sem NFs pendentes.</div></td></tr>'; return; }
+  const grupos = {};
+  pendentes.forEach(n=>{
+    if(!grupos[n.forn]) grupos[n.forn]=[];
+    grupos[n.forn].push(n);
+  });
+  let lista = Object.entries(grupos).map(([forn,nfList])=>{
+    const dias = nfList.map(n=>diasAberto(n.emissao)||0);
+    const maxD = Math.max(...dias);
+    const mediaD = (dias.reduce((a,b)=>a+b,0)/dias.length).toFixed(1);
+    const valor = nfList.reduce((s,n)=>s+(parseFloat(n.val)||0),0);
+    const etapas = [...new Set(nfList.map(n=>etapaAtual(n)).filter(Boolean))];
+    return {forn, qtd:nfList.length, maxD, mediaD, valor, etapas};
+  });
+  if(relSort.campo==='nome'){
+    lista.sort((a,b)=> relSort.dir==='az' ? a.forn.localeCompare(b.forn) : b.forn.localeCompare(a.forn));
+  } else if(relSort.campo==='dias'){
+    lista.sort((a,b)=> relSort.dir==='desc' ? b.maxD-a.maxD : a.maxD-b.maxD);
+  } else if(relSort.campo==='val'){
+    lista.sort((a,b)=> relSort.dir==='desc' ? b.valor-a.valor : a.valor-b.valor);
+  } else {
+    lista.sort((a,b)=>b.maxD-a.maxD); // padrão: maior dias primeiro
+  }
+
+  tb.innerHTML = lista.map((r,i)=>`<tr>
+    <td style="font-weight:700">${r.forn}</td>
+    <td style="text-align:center"><span class="badge" style="background:#e4f0fb;color:var(--sap-blue);border-color:#a4caee">${r.qtd}</span></td>
+    <td style="text-align:center"><span class="${r.maxD>=25?'dias-alerta':'dias-normal'}">${r.maxD}</span></td>
+    <td style="text-align:center"><span class="${parseFloat(r.mediaD)>=25?'dias-alerta':'dias-normal'}">${r.mediaD}</span></td>
+    <td>${r.etapas.map(a=>`<span class="area-tag-alerta">${a}</span>`).join('')||'—'}</td>
+    <td>${fval(r.valor)}</td>
+  </tr>`).join('');
+}
+
+function renderRelSnapshots(){
+  const el  = document.getElementById('rel-snap-list');
+  const cnt = document.getElementById('rel-snap-count');
+  if(!el) return;
+  el.innerHTML = '<div class="rel-empty">Carregando histórico...</div>';
+  carregarSnapshotsFirebase().then(snaps => {
+    if(cnt) cnt.textContent = snaps.length+' importação'+(snaps.length!==1?'ões':'');
+    if(!snaps.length){ el.innerHTML='<div class="rel-empty">Nenhum snapshot registrado ainda.</div>'; return; }
+    const ETAPA_COLORS = {MIGO:'#6a1a75',MIRO:'#e76500',FIN:'#bb0000',SUP:'#0854a0'};
+    el.innerHTML = snaps.map(s=>{
+      const r = s.resumo || {};
+      const etapasStr = AREAS.map(a => r[a]>0 ?
+        `<span class="snap-pill" style="background:#f0f0f0;color:${ETAPA_COLORS[a]||'#888'};border-color:${ETAPA_COLORS[a]||'#ccc'}">${a}: ${r[a]}</span>` : ''
+      ).join('');
+      return `<div class="snap-row">
+        <span class="snap-date">📅 ${s.dataFmt||s.data}</span>
+        <span class="snap-info">
+          <span class="snap-pill">Total: ${r.total||0}</span>
+          <span class="snap-pill" style="background:#f1fdf6;color:var(--green);border-color:#a9d5b5">Pagas: ${r.pagas||0}</span>
+          <span class="snap-pill" style="background:#fef7f1;color:#b84c00;border-color:#f5c97e">Pend.: ${r.pendentes||0}</span>
+          ${etapasStr}
+          ${s.importadoPor?`<span style="font-size:10px;color:var(--muted)">— ${s.importadoPor}</span>`:''}
+        </span>
+      </div>`;
+    }).join('');
+  }).catch(() => {
+    el.innerHTML='<div class="rel-empty">Erro ao carregar snapshots.</div>';
+  });
+}
+
+
+// ══════════════════════════════════════════════
+// GESTÃO DE ARQUIVOS
+// ══════════════════════════════════════════════
+
+// Parse date from filename: looks for ddmmaa or ddmmaaaa pattern
+function parseDateFromFilename(filename){
+  const name = filename.replace(/\.[^.]+$/, ''); // remove extension
+  // Try ddmmaaaa (e.g. 20052026)
+  let m = name.match(/(\d{2})(\d{2})(\d{4})/);
+  if(m){
+    const d=parseInt(m[1]),mo=parseInt(m[2]),y=parseInt(m[3]);
+    if(d>=1&&d<=31&&mo>=1&&mo<=12&&y>=2000&&y<=2099)
+      return `${m[3]}-${m[2]}-${m[1]}`; // YYYY-MM-DD
+  }
+  // Try ddmmaa (e.g. 200526)
+  m = name.match(/(\d{2})(\d{2})(\d{2})/);
+  if(m){
+    const d=parseInt(m[1]),mo=parseInt(m[2]),y=2000+parseInt(m[3]);
+    if(d>=1&&d<=31&&mo>=1&&mo<=12)
+      return `${y}-${m[2]}-${m[1]}`; // YYYY-MM-DD
+  }
+  return null;
+}
+
+function carregarArquivos(){
+  try { const r=localStorage.getItem(STORAGE_ARQ); return r?JSON.parse(r):[]; } catch(e){ return []; }
+}
+
+function salvarArquivos(lista){
+  try { localStorage.setItem(STORAGE_ARQ, JSON.stringify(lista)); } catch(e){}
+}
+
+function registrarArquivo(filename, resumo){
+  const lista = arquivosFirebase.length ? arquivosFirebase : carregarArquivos();
+  const dataNome = parseDateFromFilename(filename);
+  const agora = new Date().toISOString();
+  const id = Date.now();
+
+  // If same day file exists, mark it as superseded
+  if(dataNome){
+    lista.forEach(a => {
+      if(a.dataNome === dataNome && !a.superseded) a.superseded = true;
+    });
+  }
+
+  lista.push({
+    id, filename, dataNome,
+    importadoEm: agora,
+    importadoFmt: new Date().toLocaleString('pt-BR'),
+    qtdNova:     resumo.qtdNova     || 0,
+    qtdAtual:    resumo.qtdAtual    || 0,
+    qtdSemAlter: resumo.qtdSemAlter || 0,
+    qtdIgnorada: resumo.qtdIgnorada || 0,
+    superseded: false,
+    nfCount: (resumo.qtdNova||0) + (resumo.qtdAtual||0) + (resumo.qtdSemAlter||0)
+  });
+
+  salvarArquivos(lista);
+}
+
+function renderArquivos(){
+  const lista = arquivosFirebase.length ? arquivosFirebase : carregarArquivos();
+  const el    = document.getElementById('arq-list');
+  const cnt   = document.getElementById('arq-count');
+  if(cnt) cnt.textContent = lista.length + ' arquivo' + (lista.length!==1?'s':'');
+
+  if(!lista.length){
+    el.innerHTML='<div class="arq-empty">Nenhum arquivo importado ainda.<br>Importe um arquivo Excel no Dashboard para começar.</div>';
+    return;
+  }
+
+  // Sort: by dataNome desc, then by importedAt desc (most recent first)
+  const sorted = [...lista].sort((a,b)=>{
+    const da = a.dataNome||'0000-00-00', db = b.dataNome||'0000-00-00';
+    if(da !== db) return db.localeCompare(da);
+    return b.importadoEm.localeCompare(a.importadoEm);
+  });
+
+  const hoje    = new Date().toISOString().split('T')[0];
+  const ontem   = (()=>{ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0]; })();
+
+  el.innerHTML = sorted.map((a,i) => {
+    const isAtivo = !a.superseded;
+    const rowCls  = isAtivo ? 'ativo' : 'superseded';
+
+    // Human-friendly date label
+    let dateLabel = a.dataNome || '—';
+    if(a.dataNome){
+      if(a.dataNome === hoje)   dateLabel = `Hoje (${fdate(a.dataNome)})`;
+      else if(a.dataNome === ontem) dateLabel = `Ontem (${fdate(a.dataNome)})`;
+      else dateLabel = fdate(a.dataNome);
+    }
+
+    return `<div class="arq-row ${rowCls}">
+      <span class="arq-date-badge">${dateLabel}</span>
+      <span class="arq-filename" title="${a.filename}">📄 ${a.filename}</span>
+      <div class="arq-pills">
+        <span class="arq-pill nova">🆕 ${a.qtdNova}</span>
+        <span class="arq-pill upd">🔄 ${a.qtdAtual}</span>
+        <span class="arq-pill same">✓ ${a.qtdSemAlter}</span>
+      </div>
+      <span class="arq-meta">Importado: ${a.importadoFmt}</span>
+      <span class="arq-status-tag ${isAtivo?'ativo':'sup'}">${isAtivo?'✓ ATIVO':'SUBSTITUÍDO'}</span>
+      ${isOwner()?'<button class="sap-btn" style="color:var(--red);border-color:var(--red);flex-shrink:0" onclick="excluirArquivo('+a.id+')">🗑 Excluir</button>':''}
+    </div>`;
+  }).join('');
+}
+
+function excluirArquivo(id){
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode excluir arquivos.',''); return; }
+  const lista = arquivosFirebase.length ? arquivosFirebase : carregarArquivos();
+  const arq   = lista.find(a=>a.id===id);
+  if(!arq) return;
+
+  // Remove from registry
+  const novaLista = lista.filter(a=>a.id!==id);
+
+  // If the deleted file was superseded, no action on NFs needed
+  // If it was active and there's a previous file for same day, reactivate it
+  if(!arq.superseded && arq.dataNome){
+    const anterior = novaLista.filter(a=>a.dataNome===arq.dataNome)
+                               .sort((a,b)=>b.importadoEm.localeCompare(a.importadoEm))[0];
+    if(anterior) anterior.superseded = false;
+  }
+
+  salvarArquivos(novaLista);
+  db.ref('arquivos/'+id).remove();
+
+  // If deleting the active (most recent) file, warn user
+  if(!arq.superseded){
+    showToast(`Arquivo "${arq.filename}" removido do registro. Use "Limpar dados" para remover as NFs se necessário.`,'');
+  } else {
+    showToast(`Arquivo "${arq.filename}" removido.`,'');
+  }
+
+  renderArquivos();
+}
+
+
+
+
+
+
+// ══════════════════════════════════════════════
+// SNAPSHOT DIÁRIO NO FIREBASE
+// ══════════════════════════════════════════════
+function salvarSnapshotFirebase(){
+  const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const pendentes = nfs.filter(n => n.status !== 'Pago');
+  const pagas     = nfs.filter(n => n.status === 'Pago');
+
+  // Resumo do dia por etapa
+  const resumo = { data: hoje, total: nfs.length, pagas: pagas.length, pendentes: pendentes.length };
+  AREAS.forEach(a => { resumo[a] = pendentes.filter(n => etapaAtual(n) === a).length; });
+
+  // Estado individual de cada NF (compacto — só o necessário para comparação)
+  const estadoNFs = {};
+  pendentes.forEach(n => {
+    const key = nfKey(n);
+    estadoNFs[key] = {
+      num:     n.num,
+      forn:    n.forn,
+      etapa:   etapaAtual(n) || '',
+      status:  n.status,
+      pc:      n.pc || '',
+      val:     n.val || 0,
+      emissao: n.emissao || '',
+      dias:    diasAberto(n.emissao) || 0
+    };
+  });
+
+  const snapshot = {
+    data:       hoje,
+    dataFmt:    new Date().toLocaleDateString('pt-BR'),
+    importadoEm: new Date().toISOString(),
+    importadoPor: _fbUser ? _fbUser.email : '',
+    resumo,
+    nfs: estadoNFs
+  };
+
+  // Save to Firebase: snapshots/YYYY-MM-DD
+  return db.ref('snapshots/' + hoje).set(snapshot)
+    .then(() => {
+      console.log('Snapshot do dia ' + hoje + ' salvo no Firebase.');
+    })
+    .catch(err => console.warn('Erro ao salvar snapshot:', err));
+}
+
+// Carrega lista de snapshots disponíveis
+function carregarSnapshotsFirebase(){
+  return db.ref('snapshots').orderByChild('data').once('value').then(snap => {
+    const data = snap.val();
+    return data ? Object.values(data).sort((a,b) => b.data.localeCompare(a.data)) : [];
+  });
+}
+
+// Carrega snapshot de um dia específico
+function carregarSnapshotDia(data){
+  return db.ref('snapshots/' + data).once('value').then(snap => snap.val());
+}
+
+
+// ══════════════════════════════════════════════
+// RANKINGS DE ATRASO POR ETAPA
+// ══════════════════════════════════════════════
+function renderRelRankings(){
+  renderRankingEtapa('MIGO', 14, 'rel-rank-migo', 'migo');
+  renderRankingEtapa('MIRO', 21, 'rel-rank-miro', 'miro');
+}
+
+function renderRankingEtapa(etapa, limiarDias, elId, cssClass){
+  const el = document.getElementById(elId);
+  if(!el) return;
+
+  // Filtra NFs na etapa com dias em aberto acima do limiar
+  const nfsEtapa = nfs.filter(n =>
+    n.status !== 'Pago' &&
+    etapaAtual(n) === etapa &&
+    (diasAberto(n.emissao)||0) > limiarDias
+  );
+
+  if(!nfsEtapa.length){
+    el.innerHTML = '<div class="rel-empty">Nenhuma NF em ' + etapa + ' acima de ' + limiarDias + ' dias.</div>';
+    return;
+  }
+
+  // Agrupa por requisitante
+  const grupos = {};
+  nfsEtapa.forEach(n => {
+    const req = n.requisitante || 'Não identificado';
+    // Find departamento from funcionarios by requisitante name
+    const funcReq = funcionarios.find(f => f.nome === req || (f.nome1 && (f.nome1+' '+f.sobrenome).trim() === req));
+    const depto = funcReq ? (funcReq.area||'—') : '—';
+    if(!grupos[req]) grupos[req] = { req, depto, nfs:[], totalDias:0, maxDias:0 };
+    const dias = diasAberto(n.emissao)||0;
+    grupos[req].nfs.push(n);
+    grupos[req].totalDias += dias;
+    grupos[req].maxDias = Math.max(grupos[req].maxDias, dias);
+  });
+
+  const lista = Object.values(grupos)
+    .sort((a,b) => b.maxDias - a.maxDias || b.nfs.length - a.nfs.length);
+
+  const total = nfsEtapa.length;
+
+  // Header
+  const header = '<div class="rank-row" style="background:linear-gradient(to bottom,#f2f2f2,#e8e8e8);font-weight:700;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.4px">' +
+    '<span class="rank-pos">#</span>' +
+    '<span style="flex:1">Requisitante</span>' +
+    '<span style="width:130px">Departamento</span>' +
+    '<span style="width:70px;text-align:center">NFs</span>' +
+    '<span style="width:90px;text-align:center">Máx. Dias</span>' +
+    '<span style="width:90px;text-align:center">Média Dias</span>' +
+    '<span style="width:120px;text-align:center">% do Total</span>' +
+  '</div>';
+
+  el.innerHTML = header + lista.map((g, i) => {
+    const posClass = i===0?'top1':i===1?'top2':i===2?'top3':'';
+    const media    = Math.round(g.totalDias / g.nfs.length);
+    const pct      = total > 0 ? Math.round(g.nfs.length/total*100) : 0;
+    const posLabel = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'º';
+    return '<div class="rank-row">' +
+      '<span class="rank-pos ' + posClass + '">' + posLabel + '</span>' +
+      '<span style="flex:1;font-weight:700">' + g.req + '</span>' +
+      '<span style="width:130px;font-size:11px;color:var(--muted)">' + (g.depto||'—') + '</span>' +
+      '<span style="width:70px;text-align:center"><span class="rank-alert ' + cssClass + '">' + g.nfs.length + ' NF' + (g.nfs.length!==1?'s':'') + '</span></span>' +
+      '<span style="width:90px;text-align:center"><span class="' + (g.maxDias>=limiarDias?'dias-alerta':'dias-normal') + '">' + g.maxDias + 'd</span></span>' +
+      '<span style="width:90px;text-align:center">' + media + 'd</span>' +
+      '<span style="width:120px;text-align:center">' +
+        '<div style="background:#eee;border-radius:10px;height:8px;overflow:hidden">' +
+          '<div style="background:' + (cssClass==='migo'?'#6a1a75':'#e65100') + ';height:100%;width:' + pct + '%"></div>' +
+        '</div>' +
+        '<span style="font-size:10px;color:var(--muted)">' + pct + '%</span>' +
+      '</span>' +
+    '</div>';
+  }).join('');
+}
+
+
+// ══════════════════════════════════════════════
+// PAINEL DE SLA
+// ══════════════════════════════════════════════
+function renderSLA(){
+  const pendentes = nfs.filter(n=>n.status!=='Pago');
+  if(!pendentes.length) return;
+
+  // Count by SLA faixa
+  let cnt07=0, cnt814=0, cnt1521=0, cnt2230=0, cnt30=0;
+  pendentes.forEach(n=>{
+    const d = diasAberto(n.emissao)||0;
+    if(d<=7)       cnt07++;
+    else if(d<=14) cnt814++;
+    else if(d<=21) cnt1521++;
+    else if(d<=30) cnt2230++;
+    else           cnt30++;
+  });
+
+  // Update summary boxes
+  document.getElementById('sla-cnt-0-7').textContent   = cnt07;
+  document.getElementById('sla-cnt-8-14').textContent  = cnt814;
+  document.getElementById('sla-cnt-15-21').textContent = cnt1521;
+  document.getElementById('sla-cnt-22-30').textContent = cnt2230;
+  document.getElementById('sla-cnt-30').textContent    = cnt30;
+
+  // ── Gauge helper ──
+  function setGauge(id, pctId, dentro, totalEtapa){
+    const pct = totalEtapa>0 ? Math.round(dentro/totalEtapa*100) : 0;
+    const el = document.getElementById(id);
+    // Semicircle: rotate from -90deg (0%) to +90deg (100%)
+    const deg = -90 + (pct/100)*180;
+    if(el) el.style.transform = 'rotate('+deg+'deg)';
+    const pEl = document.getElementById(pctId);
+    if(pEl) pEl.textContent = pct+'%';
+    return pct;
+  }
+
+  // ── Bar chart helper ──
+  function setBars(elId, faixas, color){
+    const el = document.getElementById(elId);
+    if(!el) return;
+    const maxV = Math.max(...faixas.map(f=>f.v), 1);
+    el.innerHTML = faixas.map(f=>{
+      const w = Math.round(f.v/maxV*100);
+      return '<div class="sla-bar-row">'+
+        '<span class="sla-bar-label">'+f.label+'</span>'+
+        '<div class="sla-bar-track"><div class="sla-bar-inner" style="width:'+w+'%;background:'+color+'"></div></div>'+
+        '<span class="sla-bar-val">'+f.v+'</span>'+
+      '</div>';
+    }).join('');
+  }
+
+  // ── Suprimentos: NFs 0-7 dias por etapa ──
+  const supNFs = pendentes.filter(n=>(diasAberto(n.emissao)||0)<=7);
+  const supDentro = supNFs.filter(n=>etapaAtual(n)==='SUP').length;
+  setGauge('gauge-sup','gauge-sup-pct', supDentro, supNFs.length);
+  const supPorEtapa = AREAS.map(a=>({label:a, v:supNFs.filter(n=>etapaAtual(n)===a).length})).filter(f=>f.v>0);
+  setBars('sla-bars-sup', supPorEtapa.length?supPorEtapa:[{label:'Nenhuma',v:0}], '#4caf50');
+
+  // ── MIGO: NFs 8-14 dias, etapa MIGO ──
+  const migoNFs = pendentes.filter(n=>{const d=diasAberto(n.emissao)||0; return d>7&&d<=14;});
+  const migoDentro = migoNFs.filter(n=>etapaAtual(n)==='MIGO').length;
+  setGauge('gauge-migo','gauge-migo-pct', migoDentro, migoNFs.length);
+  const migoPorEtapa = AREAS.map(a=>({label:a, v:migoNFs.filter(n=>etapaAtual(n)===a).length})).filter(f=>f.v>0);
+  setBars('sla-bars-migo', migoPorEtapa.length?migoPorEtapa:[{label:'Nenhuma',v:0}], '#ffc107');
+
+  // ── MIRO: NFs 15-21 dias, etapa MIRO ──
+  const miroNFs = pendentes.filter(n=>{const d=diasAberto(n.emissao)||0; return d>14&&d<=21;});
+  const miroDentro = miroNFs.filter(n=>etapaAtual(n)==='MIRO').length;
+  setGauge('gauge-miro','gauge-miro-pct', miroDentro, miroNFs.length);
+  const miroPorEtapa = AREAS.map(a=>({label:a, v:miroNFs.filter(n=>etapaAtual(n)===a).length})).filter(f=>f.v>0);
+  setBars('sla-bars-miro', miroPorEtapa.length?miroPorEtapa:[{label:'Nenhuma',v:0}], '#ff9800');
+
+  // ── CAP: NFs 22-30 dias, etapa CAP ──
+  const capNFs = pendentes.filter(n=>{const d=diasAberto(n.emissao)||0; return d>21&&d<=30;});
+  const capDentro = capNFs.filter(n=>etapaAtual(n)==='FIN').length;
+  setGauge('gauge-cap','gauge-cap-pct', capDentro, capNFs.length);
+  const capPorEtapa = AREAS.map(a=>({label:a, v:capNFs.filter(n=>etapaAtual(n)===a).length})).filter(f=>f.v>0);
+  setBars('sla-bars-cap', capPorEtapa.length?capPorEtapa:[{label:'Nenhuma',v:0}], '#e53935');
+}
+
+// ── USUÁRIO ATUAL ──
+function popularUserSwitcher(){
+  if(!_fbUser) return;
+  const email = _fbUser.email.toLowerCase();
+  // Match by email field first, then by SAP user prefix
+  currentUser = funcionarios.find(f =>
+    (f.email||'').toLowerCase() === email ||
+    (f.usuarioSAP||'').toLowerCase() === email.split('@')[0]
+  ) || null;
+  const badge = document.getElementById('admin-badge');
+  if(currentUser){
+    if(currentUser.admin){
+      badge.style.display='';
+      badge.textContent = 'ADMIN · '+currentUser.area;
+    } else {
+      badge.style.display='';
+      badge.textContent = currentUser.area;
+      badge.style.background = '#0854a0';
+    }
+  } else {
+    badge.style.display='none';
+  }
+}
+
+function trocarUsuario(){ popularUserSwitcher(); refresh(); }
+
+
+// ── EDITAR USUÁRIO ──
+function abrirNovoUsuario(){
+  if(_fbUser && !isOwner()){ showToast('Apenas os owners podem configurar usuários.',''); return; }
+  document.getElementById('edit-user-id').value    = '';
+  document.getElementById('edit-nome').value        = '';
+  document.getElementById('edit-sobrenome').value   = '';
+  document.getElementById('edit-email').value       = '';
+  document.getElementById('edit-sap').value         = '';
+  document.getElementById('edit-area').value        = '';
+  if(document.getElementById('edit-etapa')) document.getElementById('edit-etapa').value = '';
+  document.getElementById('edit-admin').checked     = false;
+  document.getElementById('edit-user-ov').querySelector('h3').textContent = '➕ Novo Usuário';
+  const mo = document.getElementById('edit-user-ov');
+  document.body.appendChild(mo);
+  mo.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function abrirEditarUsuario(id){
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode editar usuários.',''); return; }
+  const f = funcionarios.find(x=>x.id===id);
+  if(!f) return;
+  document.getElementById('edit-user-id').value    = id;
+  document.getElementById('edit-nome').value        = f.nome1||f.nome.split(' ')[0];
+  document.getElementById('edit-sobrenome').value   = f.sobrenome||f.nome.split(' ').slice(1).join(' ');
+  document.getElementById('edit-email').value       = f.email||'';
+  document.getElementById('edit-sap').value         = f.usuarioSAP||'';
+  document.getElementById('edit-area').value        = f.area||'';
+  document.getElementById('edit-etapa').value       = f.etapa||'';
+  document.getElementById('edit-admin').checked     = !!f.admin;
+  document.getElementById('edit-user-ov').classList.add('open');
+}
+
+function closeEditUser(e){
+  if(e && e.target !== document.getElementById('edit-user-ov')) return;
+  document.getElementById('edit-user-ov').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function salvarEdicaoUsuario(){
+  const idRaw     = document.getElementById('edit-user-id').value;
+  const id        = idRaw ? parseFloat(idRaw) : Date.now();
+  const nome1     = document.getElementById('edit-nome').value.trim();
+  const sobrenome = document.getElementById('edit-sobrenome').value.trim();
+  const email     = document.getElementById('edit-email').value.trim().toLowerCase();
+  const sap       = document.getElementById('edit-sap').value.trim().toUpperCase();
+  const area      = document.getElementById('edit-area').value.trim();
+  const etapa     = document.getElementById('edit-etapa')?.value||'';
+  const admin     = document.getElementById('edit-admin').checked;
+  if(!nome1||!sobrenome){ showToast('Preencha nome e sobrenome.',''); return; }
+  if(!area){ showToast('Selecione a área.',''); return; }
+  if(!email){ showToast('Informe o e-mail.',''); return; }
+  const nome = nome1 + ' ' + sobrenome;
+  const atualizado = {id, nome, nome1, sobrenome, area, etapa, email, usuarioSAP:sap, cargo:'', admin};
+  salvarFuncionarioFirebase(atualizado);
+  const isNovo = !document.getElementById('edit-user-id').value;
+  closeEditUser();
+  document.getElementById('edit-user-ov').querySelector('h3').textContent = '✏️ Editar Usuário';
+  showToast(nome + (isNovo?' cadastrado':' atualizado') + ' com sucesso!','success');
+}
+
+// ── CONFIGURAÇÕES ──
+function renderCfgList(){
+  const el=document.getElementById('cfg-list');
+  if(!el) return;
+  const count=document.getElementById('cfg-count');
+  if(!funcionarios.length){
+    el.innerHTML='<div class="func-empty" style="padding:30px;text-align:center">' +
+      (isOwner()||!_fbUser ? 
+        '<div style="font-size:13px;color:var(--muted)">Nenhum usuário configurado ainda.</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-top:6px">Clique em <strong>+ Novo Usuário</strong> para começar.</div>'
+        : '<div style="font-size:13px;color:var(--muted)">Nenhum usuário configurado.</div>') +
+    '</div>';
+    count.textContent='0 registros';
+    return;
+  }
+  count.textContent=funcionarios.length+' registro'+(funcionarios.length!==1?'s':'');
+  // Table header
+  const header = `<div class="func-row" style="background:linear-gradient(to bottom,#f2f2f2,#e8e8e8);border-bottom:2px solid var(--border-dark);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">
+    <span style="flex:1">Nome / E-mail</span>
+    <span style="width:110px">Etapa</span>
+    <span style="width:120px">Departamento</span>
+    <span style="width:60px">Perfil</span>
+    <span style="width:120px">Ações</span>
+  </div>`;
+  el.innerHTML = header + funcionarios.map(f=>`
+    <div class="func-row">
+      <span style="flex:1;font-weight:700">${f.nome}<br><span style="font-size:10px;color:var(--muted);font-weight:400">${f.email||'sem e-mail'}</span></span>
+      <span style="width:110px"><span class="area-tag">${f.etapa||'—'}</span></span>
+      <span style="width:120px;font-size:11px;color:var(--muted)">${f.area||'—'}</span>
+      <span style="width:60px">${f.admin?'<span class="func-admin-tag">ADMIN</span>':'<span style="font-size:10px;color:var(--muted)">Usuário</span>'}</span>
+      <span style="width:120px;display:flex;gap:4px">
+        ${isOwner()?'<button class="sap-btn" onclick="abrirEditarUsuario('+f.id+')" style="padding:3px 8px;font-size:11px">✏️ Editar</button>':''}
+        ${isOwner()?'<button class="func-del" onclick="deletarFuncionario('+f.id+')" title="Remover">✕</button>':''}
+      </span>
+    </div>`).join('');
+}
+
+function salvarFuncionario(){
+  const nome        = document.getElementById('cfg-nome').value.trim();
+  const sobrenome   = document.getElementById('cfg-sobrenome').value.trim();
+  const area        = document.getElementById('cfg-area').value;
+  const admin       = document.getElementById('cfg-admin').checked;
+  const usuarioSAP  = document.getElementById('cfg-sap').value.trim().toUpperCase();
+  const emailFunc   = document.getElementById('cfg-email').value.trim().toLowerCase();
+  const etapa       = document.getElementById('cfg-etapa')?.value || '';
+  if(!nome)     { showToast('Informe o nome do usuário.');return; }
+  if(!sobrenome){ showToast('Informe o sobrenome do usuário.');return; }
+  if(!area)     { showToast('Informe o departamento do usuário.');return; }
+  if(!emailFunc){ showToast('Informe o e-mail do usuário.');return; }
+  const nomeCompleto = nome + ' ' + sobrenome;
+  const novoFunc = {id:Date.now(), nome:nomeCompleto, nome1:nome, sobrenome, area, etapa, cargo:'', admin, usuarioSAP, email:emailFunc};
+  salvarFuncionarioFirebase(novoFunc);
+  document.getElementById('cfg-nome').value='';
+  document.getElementById('cfg-sobrenome').value='';
+  document.getElementById('cfg-area').value='';
+  document.getElementById('cfg-sap').value='';
+  document.getElementById('cfg-email').value='';
+  if(document.getElementById('cfg-etapa')) document.getElementById('cfg-etapa').value='';
+  document.getElementById('cfg-admin').checked=false;
+  showToast(`${nomeCompleto} cadastrado em ${area}!`,'success');
+}
+
+
+// ── IMPORTAÇÃO EM MASSA DE USUÁRIOS ──
+function baixarTemplate(){
+  // Generate CSV template
+  const rows = [
+    ['Nome','Sobrenome','Usuário SAP','Área','Admin (SIM/NAO)'],
+    ['João','Silva','JSILVA','RTP','NAO'],
+    ['Maria','Pereira','MPEREIRA','FIN','SIM'],
+    ['Carlos','Oliveira','COLIVEIRA','MIRO','NAO'],
+  ];
+  const csv = rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'template_usuarios_gestaoNF.csv';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Template baixado!','success');
+}
+
+function importarUsuarios(input){
+  const file = input.files[0];
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const wb   = XLSX.read(e.target.result, {type:'binary'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if(!rows.length){ showToast('Arquivo sem dados.'); return; }
+
+      const nrm = v => String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+      const AREAS_VALIDAS = ['suprimentos','rtp','migo','miro','cap'];
+      let qtd = 0, erros = 0;
+
+      rows.forEach(row => {
+        const nome       = String(row['Nome']||row['nome']||'').trim();
+        const sobrenome  = String(row['Sobrenome']||row['sobrenome']||'').trim();
+        const sapRaw     = String(row['Usuário SAP']||row['Usuario SAP']||row['usuarioSAP']||row['SAP']||'').trim().toUpperCase();
+        const areaRaw    = nrm(row['Departamento']||row['Área']||row['Area']||row['area']||row['Depto']||'');
+        const adminRaw   = nrm(row['Admin (SIM/NAO)']||row['Admin']||row['admin']||'');
+
+        if(!nome || !sobrenome){ erros++; return; }
+
+        // Match area
+        const area = AREAS_VALIDAS.find(a=>areaRaw.includes(a));
+        if(!area){ erros++; return; }
+
+        // Capitalize area correctly
+        const AREA_MAP = {suprimentos:'Suprimentos',rtp:'RTP',migo:'MIGO',miro:'MIRO',cap:'FIN'};
+        const admin    = adminRaw === 'sim' || adminRaw === 'yes' || adminRaw === 's';
+        const nomeCompleto = nome + ' ' + sobrenome;
+
+        // Skip duplicates
+        if(funcionarios.find(f=>f.nome===nomeCompleto && f.area===AREA_MAP[area])) return;
+
+        funcionarios.push({
+          id: Date.now() + Math.random(),
+          nome: nomeCompleto, nome1: nome, sobrenome,
+          area: AREA_MAP[area], cargo: '', admin,
+          usuarioSAP: sapRaw
+        });
+        qtd++;
+      });
+
+      input.value = '';
+      popularUserSwitcher();
+      renderCfgList();
+      showToast(`${qtd} usuário(s) importado(s)${erros?' · '+erros+' linha(s) ignorada(s)':''}!`, 'success');
+    } catch(err){
+      showToast('Erro ao ler o arquivo de usuários.');
+      console.error(err);
+    }
+  };
+  r.readAsBinaryString(file);
+}
+
+function deletarFuncionario(id){
+  removerFuncionarioFirebase(id);
+  showToast('Funcionário removido.','');
+}
+
+function atualizarFuncionarios(){
+  const display = document.getElementById('msg-area-display');
+  if(display) display.textContent = currentUser ? (currentUser.etapa||currentUser.area||'—') : '—';
+
+  const areaDest = (document.getElementById('msg-area-dest')?.value)||(document.getElementById('msg-area')?.value)||'';
+  const sel = document.getElementById('msg-func');
+  if(!sel) return;
+  if(!areaDest){ sel.innerHTML='<option value="">— Funcionário —</option>'; return; }
+
+  // Fetch from Firebase funcionarios filtered by etapa
+  db.ref('funcionarios').once('value').then(snap=>{
+    const data = snap.val()||{};
+    const lista = Object.values(data)
+      .filter(f => f && f.email && f.nome && (f.etapa||'') === areaDest)
+      .sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+    sel.innerHTML = '<option value="">— Funcionário —</option>' +
+      lista.map(f=>`<option value="${f.nome}" data-email="${f.email||''}">${f.nome}</option>`).join('');
+  });
+}
+
+function abrirNotif(id, el){
+  // Mark this notification as read
+  const card = el.closest ? el : el;
+  card.classList.remove('unread');
+  // Open the NF modal
+  openModal(id);
+  // Update badge
+  const u = notifsDoUsuario().filter(n=>!n.lida).length;
+  const b = document.getElementById('nbadge');
+  b.textContent=u||''; b.style.display=u?'':'none';
+}
+
+function markAllRead(){notifsDoUsuario().forEach(n=>n.lida=true);const b=document.getElementById('nbadge');b.textContent='';b.style.display='none';renderNotifs();}
+
+function setupDrop(){
+  const z=document.getElementById('drop-zone');
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag-over');});
+  z.addEventListener('dragleave',()=>z.classList.remove('drag-over'));
+  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('drag-over');if(e.dataTransfer.files[0])importFile(e.dataTransfer.files[0]);});
+}
+// ══════════════════════════════════════════════════
+// MAPEAMENTO DE COLUNAS DO EXCEL (A→X)
+// A=Data do Pagamento  B=Número  C=Criador do Pedido
+// D=Pedido Informado na NF  E=Pagamento  F=Status
+// G=Valor Total da Nota  H=Data Emissão  I=Elegibilidade
+// J=CFOPs da Nota  K=Nome PJ Emitente  L=Pedido pós MIGO
+// M=MIGO  N=Status MIGO  O=MIRO  P=Doc Pagamento
+// Q=Formas de Pagamento  R=Condições pgto.
+// S=Dias Até Pagamento  T=Dias em Aberto (ignorado—calculado)
+// U=Dados Adicionais  V=Adiantamento ECC
+// W=Valor NF x CNPJ Repetido  X=Possível Duplicidade no Pagamento
+// ══════════════════════════════════════════════════
+
+// Campos comparáveis no merge (Dias em Aberto é sempre calculado)
+const CAMPOS_COMPARAVEIS = ['num','forn','val','status','venc','emissao','pc',
+  'statusMigo','miro','docPgto','formaPgto','condPgto'];
+const CAMPOS_LABELS = {
+  num:'Nº NF', forn:'Fornecedor', val:'Valor', status:'Pagamento',
+  venc:'Dt.Pagamento', emissao:'Dt.Emissão', pc:'Ped.Informado na NF',
+  statusMigo:'Status MIGO', miro:'MIRO', docPgto:'Doc Pagamento',
+  formaPgto:'Forma de Pgto', condPgto:'Condição Pgto'
+};
+
+// Critério de exibição: E="Não Pago" AND F="Autorizadas" AND I="Elegível"
+function rowElegivel(r){ return true; } // now inline in forEach
+
+// Determina a etapa atual com base nas colunas D, N, O
+function determineEtapas(pcRawD, pedMigoRaw, miroRaw, statusMigo){
+  const nrm   = v => String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  const isNum = v => {
+    const s = String(v||'').trim();
+    if(!s || s==='-' || s==='—') return false;
+    const n = parseFloat(s.replace(',','.'));
+    return !isNaN(n) && n > 0;
+  };
+
+  const colD_num  = isNum(pcRawD);          // col D numérico
+  const colL_raw  = String(pedMigoRaw||'').trim();
+  const colL_aval = nrm(colL_raw).includes('avaliar');  // col L = "A Avaliar"
+  const colL_num  = isNum(colL_raw);        // col L numérico
+  const colO_raw  = String(miroRaw||'').trim();
+  const colO_aval = nrm(colO_raw).includes('avaliar');  // col O = "A Avaliar"
+  const colO_num  = isNum(colO_raw);        // col O numérico
+  const migoFeita = nrm(statusMigo||'') === 'migo realizada';
+
+  // Prioridade de etapas (mutuamente exclusivas):
+  // 1. MIGO: col L = "A Avaliar"
+  // 2. MIRO: col L numérico E col O = "A Avaliar"
+  // 3. CAP:  col L numérico E col O numérico
+  // 4. RTP:  col D vazio/não numérico (e nenhuma das anteriores)
+  // Suprimentos: sempre ok
+
+  // Prioridade: MIGO → MIRO → CAP
+  // Suprimentos nunca recebe 'alerta' — NFs sem critério ficam sem etapa ativa
+  if(colL_aval){
+    // MIGO: col L = "A Avaliar"
+    return { SUP:'ok', MIGO:'alerta', MIRO:'', CAP:'' };
+  } else if(colL_num && colO_aval){
+    // MIRO: col L numérico E col O = "A Avaliar"
+    return { SUP:'ok', MIGO:'ok', MIRO:'alerta', CAP:'' };
+  } else if(colL_num && colO_num){
+    // CAP: col L numérico E col O numérico
+    return { SUP:'ok', MIGO:'ok', MIRO:'ok', CAP:'alerta' };
+  } else {
+    // Nenhuma etapa ativa — Suprimentos ok mas sem alerta
+    return { SUP:'ok', MIGO:'', MIRO:'', CAP:'' };
+  }
+}
+
+// Derivar lista de áreas envolvidas a partir das etapas
+function areasFromEtapas(etapas){
+  return AREAS.filter(a => etapas[a] && etapas[a] !== '');
+}
+
+function fmtExcelDate(v){
+  try {
+    if(v === null || v === undefined || v === '') return '';
+    // Objeto Date nativo do Excel
+    if(v instanceof Date){
+      if(!validDate(v)) return '';
+      return v.toISOString().split('T')[0];
+    }
+    const s = String(v).trim();
+    if(!s) return '';
+    // Número serial do Excel (ex: 45678)
+    if(/^[0-9]{4,5}$/.test(s)){
+      const n = parseInt(s,10);
+      const d = new Date((n - 25569) * 86400 * 1000);
+      return validDate(d) ? d.toISOString().split('T')[0] : '';
+    }
+    // DD/MM/AAAA ou DD-MM-AAAA
+    let m = s.match(/^([0-9]{1,2})[\/-]([0-9]{1,2})[\/-]([0-9]{4})$/);
+    if(m){
+      const d = new Date(m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')+'T12:00:00');
+      return validDate(d) ? d.toISOString().split('T')[0] : '';
+    }
+    // AAAA-MM-DD
+    m = s.match(/^([0-9]{4})-([0-9]{2})-([0-9]{2})/);
+    if(m){
+      const d = new Date(m[0]+'T12:00:00');
+      return validDate(d) ? m[0] : '';
+    }
+    // AAAA/MM/DD
+    m = s.match(/^([0-9]{4})\/([0-9]{1,2})\/([0-9]{1,2})$/);
+    if(m){
+      const d = new Date(m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0')+'T12:00:00');
+      return validDate(d) ? d.toISOString().split('T')[0] : '';
+    }
+    // Último recurso
+    const d = new Date(s);
+    return validDate(d) ? d.toISOString().split('T')[0] : '';
+  } catch(e){ return ''; }
+}
+
+// Normaliza string: remove acentos, lowercase, trim
+function norm(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+
+// Mapa de campos → variações possíveis do nome da coluna (normalizadas)
+const COLMAP = {
+  num:        ['numero','nf','b'],
+  forn:       ['nome pj emitente','fornecedor','k'],
+  val:        ['valor total da nota','valor','g'],
+  pagto:      ['pagamento','e'],
+  statusF:    ['status','f'],
+  eleg:       ['elegibilidade','i'],
+  venc:       ['data do pagamento','data pagamento','a'],
+  emissao:    ['data emissao','data de emissao','emissao','h'],
+  pc:         ['pedido informado na nf','pedido de compra','pc','d'],
+  criador:    ['criador do pedido','criador','c'],
+  cfop:       ['cfops da nota','cfop','j'],
+  pedMigo:    ['pedido pos migo','pedido apos migo','l'],
+  migo:       ['migo','m'],
+  statusMigo: ['status migo','n'],
+  miro:       ['miro','o'],
+  docPgto:    ['doc pagamento','doc. pagamento','p'],
+  formaPgto:  ['formas de pagamento','forma de pagamento','q'],
+  condPgto:   ['condicoes pgto.','condicao pgto.','condicoes de pagamento','r'],
+  diasAtePgto:['dias ate pagamento','s'],
+  adiant:     ['adiantamento ecc','v'],
+  vlrRep:     ['valor nf x cnpj repetido','w'],
+  posDup:     ['possivel duplicidade no pagamento','possivel duplicidade','x'],
+  dadosAdic:  ['dados adicionais','u'],
+  requisitante:['requisitante','criador pedido compra','y'],
+  requisitanteZ:['porfc','z'],
+  deposito:    ['deposito','depósito','aa'],
+  centro:      ['centro','deposito centro','ab'],
+};
+
+// Constrói índice coluna→campo a partir dos headers reais do arquivo
+function buildColIndex(headers){
+  const idx = {}; // field → column index
+  const normH = headers.map(h => norm(h));
+  Object.entries(COLMAP).forEach(([field, variants])=>{
+    for(const v of variants){
+      const pos = normH.indexOf(v);
+      if(pos >= 0){ idx[field] = pos; break; }
+    }
+  });
+  return idx;
+}
+
+let _colIdx = {}; // populated on each import
+
+function parseRow(r, i){
+  const g  = (field) => { const p=_colIdx[field]; return (p!==undefined&&r[p]!==undefined&&r[p]!=='') ? r[p] : ''; };
+  const gs = (field) => String(g(field)).trim();
+
+  const num        = gs('num') || `IMP${String(i+1).padStart(4,'0')}`;
+  const forn       = gs('forn') || '—';
+  const vR         = g('val');
+  const val = (()=>{
+    // vR can be a number (Excel native) or string "R$ 1.234,56"
+    if(vR === null || vR === undefined || vR === '') return 0;
+    // If already a number from Excel, use directly
+    if(typeof vR === 'number') return isNaN(vR) ? 0 : vR;
+    const s = String(vR).trim();
+    if(!s || s==='-' || s==='—') return 0;
+    // Remove R$, spaces, non-numeric except dot and comma
+    let clean = s.replace(/R\$\s*/gi,'').replace(/\s/g,'').trim();
+    // pt-BR: dots=thousands separator, comma=decimal
+    // Pattern: 1.234,56 or 1.234.567,89
+    if(clean.includes(',')){
+      clean = clean.replace(/\./g,'').replace(',','.');
+    } else {
+      // No comma — remove non-numeric except last dot
+      const parts = clean.replace(/[^0-9.]/g,'').split('.');
+      clean = parts.length > 1 ? parts.slice(0,-1).join('') + '.' + parts[parts.length-1] : parts[0];
+    }
+    const n = parseFloat(clean);
+    return isNaN(n) ? 0 : Math.round(n * 100) / 100; // round to 2 decimals
+  })();
+  const pagto      = gs('pagto');
+  const statusF    = gs('statusF');
+  const eleg       = gs('eleg');
+  const status     = pagto === 'Pago' ? 'Pago' : 'Pendente';
+  const emissao    = fmtExcelDate(g('emissao'));
+  // Vencimento = emissão + 30 dias
+  const venc = (()=>{
+    if(!emissao) return '';
+    try{
+      const d = new Date(emissao+'T12:00:00');
+      if(!validDate(d)) return '';
+      d.setDate(d.getDate()+30);
+      return d.toISOString().split('T')[0];
+    }catch(e){return '';}
+  })();
+  // Ped. Compra: L (Pedido pós MIGO) se numérico, senão D (Pedido Informado na NF) se numérico
+  const _pedMigoRaw = gs('pedMigo'); // col L
+  const _pcRaw      = gs('pc');      // col D (usado apenas para etapas)
+  const toNum = v => {
+    const s = String(v).trim();
+    if(!s || s==='-' || s==='—') return '';
+    const n = parseFloat(s.replace(',','.'));
+    if(!isNaN(n) && n > 0) return String(Math.round(n));
+    return '';
+  };
+  // Pedido de Compra: SOMENTE col L, somente se numérico
+  const _pedMigoNum = toNum(_pedMigoRaw);
+  const pc          = _pedMigoNum || '';
+  const criador    = gs('criador');
+  const cfop       = gs('cfop');
+  const pedMigo    = _pedMigoRaw;
+  const migo       = gs('migo');
+  const statusMigo = gs('statusMigo');
+  const miro       = gs('miro');
+  const docPgto    = gs('docPgto');
+  const formaPgto  = gs('formaPgto');
+  const condPgto   = gs('condPgto');
+  const diasAtePgto= gs('diasAtePgto');
+  const adiant     = gs('adiant');
+  const vlrRep     = gs('vlrRep');
+  const posDup     = gs('posDup');
+  const dadosAdic       = gs('dadosAdic');
+  const _reqY           = gs('requisitante');  // col Y
+  const _reqZ           = gs('requisitanteZ'); // col Z
+  const requisitante    = _reqY.toUpperCase() === 'PORFC' ? _reqZ : _reqY; // se Y=PORFC usar Z
+  const deposito        = gs('deposito');       // col AA
+  const centro          = gs('centro');         // col AB
+
+  const etapas = determineEtapas(_pcRaw, _pedMigoRaw, miro, statusMigo);
+  const areas  = areasFromEtapas(etapas);
+
+  return {num,forn,val,status,pagto,statusF,eleg,venc,emissao,pc,
+          criador,cfop,pedMigo,migo,statusMigo,miro,docPgto,
+          formaPgto,condPgto,diasAtePgto,adiant,vlrRep,posDup,dadosAdic,
+          requisitante,deposito,centro,
+          areas,etapas};
+}
+
+function detectChanges(existing, incoming){
+  const changed = [];
+  CAMPOS_COMPARAVEIS.forEach(k=>{
+    const a = String(existing[k]??'').trim();
+    const b = String(incoming[k]??'').trim();
+    if(a !== b) changed.push({campo:CAMPOS_LABELS[k]||k, de:a||'—', para:b||'—'});
+  });
+  return changed;
+}
+
+function limparFirebase(){
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar o Firebase.',''); return; }
+  showToast('Limpando Firebase...','')
+  // funcionarios, notificacoes e presence NUNCA sao apagados
+  Promise.all([
+    db.ref('nfs').remove(),
+    db.ref('meta').remove(),
+    db.ref('arquivos').remove()
+  ]).then(()=>{
+    nfs=[];
+    notifs=[];
+    arquivosFirebase=[];
+    try{localStorage.removeItem(STORAGE_NFS);localStorage.removeItem(STORAGE_MSGS);localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(STORAGE_ARQ);}catch(e){}
+    refresh();
+    showToast('Firebase limpo! Notificações e usuários preservados.','success');
+  }).catch(e=>showToast('Erro ao limpar: '+e.message,''));
+}
+
+function limparDados(){
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar os dados.',''); return; }
+  nfs = [];
+  try {
+    localStorage.removeItem(STORAGE_NFS);
+    localStorage.removeItem(STORAGE_MSGS);
+  } catch(e){}
+  const log = document.getElementById('imp-log');
+  if(log) log.style.display='none';
+  updateStats();
+  renderDash();
+  updateEtapasStrip();
+  popularCriadores();
+  renderNFTable();
+  renderHistoricoKPIs();
+  renderHistorico();
+  showToast('Dados limpos. Importe o arquivo Excel para começar.','');
+}
+
+function importFile(file){
+  // Allow import in local/preview mode (no Firebase) OR when owner
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode importar arquivos.',''); return; }
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      // Read as array-of-arrays with cellDates — guaranteed alignment
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const nrm2 = v => String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+      const allRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(allRows.length<2){showToast('Arquivo sem dados.');return;}
+      // Find the actual header row (look for 'Número' or variants in any of first 5 rows)
+      let headerRowIdx = 0;
+      for(let i=0;i<Math.min(5,allRows.length);i++){
+        const rowNorm = allRows[i].map(v=>nrm2(v));
+        if(rowNorm.some(v=>v.includes('numero')||v==='b')){
+          headerRowIdx = i;
+          break;
+        }
+      }
+      const headers = allRows[headerRowIdx]||[];
+      const dataRows  = allRows.slice(headerRowIdx+1).filter(r=>r.some(v=>v!==''&&v!==null&&v!==undefined));
+
+      // Build column index from actual headers
+      _colIdx = buildColIndex(headers);
+
+      // Fallback por posição fixa A→X (0→23) para campos críticos não encontrados
+      const POS_FALLBACK = {
+        venc:0, num:1, criador:2, pc:3, pagto:4, statusF:5,
+        val:6, emissao:7, eleg:8, cfop:9, forn:10, pedMigo:11,
+        migo:12, statusMigo:13, miro:14, docPgto:15, formaPgto:16,
+        condPgto:17, diasAtePgto:18, dadosAdic:20, adiant:21, vlrRep:22, posDup:23
+      };
+      Object.entries(POS_FALLBACK).forEach(([field, pos])=>{
+        if(_colIdx[field]===undefined) _colIdx[field] = pos;
+      });
+
+      const sample = dataRows[0]||[];
+
+
+      // Set import lock in Firebase (blocks all users)
+      _importing = true;
+      db.ref('meta').update({importing: true});
+
+      // Remove seed NFs before importing real data
+      nfs = nfs.filter(n=>!n.isSeed);
+
+      let qtdNova=0, qtdAtual=0, qtdSemAlter=0;
+      const logEntries=[];
+      const now=new Date();
+      const horaStr=`${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')} — ${now.toLocaleDateString('pt-BR')}`;
+
+      // Posições fixas conforme layout A→X definido pelo usuário:
+      // E=4 Pagamento, F=5 Status, I=8 Elegibilidade
+      const POS_E = _colIdx['pagto']   !== undefined ? _colIdx['pagto']   : 4;
+      const POS_F = _colIdx['statusF'] !== undefined ? _colIdx['statusF'] : 5;
+      const POS_I = _colIdx['eleg']    !== undefined ? _colIdx['eleg']    : 8;
+
+      // Mostra valores reais das primeiras linhas para diagnóstico
+      const amostra = dataRows.slice(0,3).map((r,idx)=>
+        `L${idx+2}: E(${POS_E})="${r[POS_E]}" F(${POS_F})="${r[POS_F]}" I(${POS_I})="${r[POS_I]}"`
+      ).join(' | ');
+      // Atualiza diagnóstico visual
+      const dbgEl = document.getElementById('imp-log-body');
+      if(dbgEl) dbgEl.innerHTML += `<div style="padding:6px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border)">
+        📋 Crit. E="${dataRows[0]?.[POS_E]||'?'}" F="${dataRows[0]?.[POS_F]||'?'}" I="${dataRows[0]?.[POS_I]||'?'}"
+        &nbsp;—&nbsp; ${amostra}
+      </div>`;
+
+      const nrm = v => String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+      const modoTeste = document.getElementById('modo-teste') && document.getElementById('modo-teste').checked;
+
+      let qtdIgnorada=0;
+      dataRows.forEach((r,i)=>{
+        // Skip empty rows
+        if(!r || r.every(v=>v===''||v===null||v===undefined)){ qtdIgnorada++; return; }
+
+        if(!modoTeste){
+          // Normaliza removendo acentos, espaços duplos e convertendo para minúsculo
+          const nrmV = v => String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+          const E = nrmV(r[POS_E]);
+          const F = nrmV(r[POS_F]);
+          const I = nrmV(r[POS_I]);
+          // E="Pago" + F="Autorizadas" + I="Elegível"
+          const isPago     = E === 'pago'     && F === 'autorizadas' && I === 'elegivel';
+          // E="Não Pago" + F="Autorizadas" + I="Elegível"
+          const isPendente = E === 'nao pago' && F === 'autorizadas' && I === 'elegivel';
+          if(!isPago && !isPendente){ qtdIgnorada++; return; }
+        }
+
+        const parsed  = parseRow(r,i);
+
+        const existing = nfs.find(n=>n.num===parsed.num && n.forn===parsed.forn);
+
+        if(!existing){
+          // NOVA NF
+          nfs.push({id:Date.now()+i, ...parsed, msgs:[], importadoEm:horaStr});
+          qtdNova++;
+          logEntries.push({tipo:'new', num:parsed.num, forn:parsed.forn,
+            desc:`Nova NF incluída. Etapa atual: ${Object.entries(parsed.etapas).find(([,v])=>v==='alerta')?.[0]||'—'}.`, changes:[]});
+        } else {
+          const changes = detectChanges(existing, parsed);
+          if(changes.length > 0){
+            // ATUALIZAR — preserva msgs e id; atualiza campos e etapas
+            CAMPOS_COMPARAVEIS.forEach(k=>{ if(parsed[k]!==undefined) existing[k]=parsed[k]; });
+            existing.areas      = parsed.areas;
+            existing.etapas     = parsed.etapas;
+            existing.criador    = parsed.criador;
+            existing.cfop       = parsed.cfop;
+            existing.pedMigo    = parsed.pedMigo;
+            existing.migo       = parsed.migo;
+            existing.statusMigo = parsed.statusMigo;
+            existing.miro       = parsed.miro;
+            existing.docPgto    = parsed.docPgto;
+            existing.formaPgto  = parsed.formaPgto;
+            existing.condPgto   = parsed.condPgto;
+            existing.diasAtePgto= parsed.diasAtePgto;
+            existing.adiant     = parsed.adiant;
+            existing.vlrRep     = parsed.vlrRep;
+            existing.posDup     = parsed.posDup;
+            existing.dadosAdic    = parsed.dadosAdic;
+            existing.requisitante = parsed.requisitante;
+            existing.deposito     = parsed.deposito;
+            existing.centro      = parsed.centro;
+            existing.atualizadoEm = horaStr;
+            qtdAtual++;
+            const changeDesc = changes.map(ch=>`${ch.campo}: "${ch.de}" → "${ch.para}"`).join(' | ');
+            logEntries.push({tipo:'upd', num:parsed.num, forn:parsed.forn,
+              desc:`Atualizada — ${changes.length} campo(s) alterado(s).`, changes, changeDesc});
+            notifs.unshift({tipo:'warn',ico:'🔄',title:`NF #${parsed.num} atualizada`,
+              desc:changeDesc.substring(0,100),nf:parsed.num,hora:'Agora',lida:false});
+          } else {
+            // SEM ALTERAÇÃO — atualiza apenas etapas (podem mudar sem mudar campos textuais)
+            existing.etapas = parsed.etapas;
+            existing.areas  = parsed.areas;
+            qtdSemAlter++;
+            logEntries.push({tipo:'same', num:parsed.num, forn:parsed.forn,
+              desc:'Sem alterações nos campos. Histórico de comunicação preservado.', changes:[]});
+          }
+        }
+      });
+
+      // Render log
+      const logEl = document.getElementById('imp-log');
+      const logBody = document.getElementById('imp-log-body');
+      const logSum  = document.getElementById('imp-log-summary');
+      logEl.style.display='';
+      const qtdPago = nfs.filter(n=>n.status==='Pago').length;
+      const qtdPend = nfs.filter(n=>n.status==='Pendente').length;
+      logSum.textContent=`${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} sem alteração · ${qtdIgnorada} ignorada(s) | Pagas: ${qtdPago} · Pendentes: ${qtdPend}`;
+      logBody.innerHTML = logEntries.map(l=>`
+        <div class="log-row ${l.tipo}">
+          <span class="log-tag ${l.tipo}">${l.tipo==='new'?'NOVA':l.tipo==='upd'?'ATUALIZADA':'INALTERADA'}</span>
+          <span class="log-nf">#${l.num}</span>
+          <span class="log-desc">${l.forn} — ${l.desc}
+            ${l.changeDesc?`<br><span class="log-changed">↳ ${l.changeDesc}</span>`:''}
+          </span>
+        </div>`).join('');
+
+      const importNotif = {tipo:'success',ico:'📊',title:'Importação concluída',
+        desc:`${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} sem alteração · ${qtdIgnorada} ignorada(s) — ${file.name}`,
+        nf:'',hora:'Agora',lida:false,area:null,destinatario:null,
+        somenteOwners: true};
+      notifs.unshift(importNotif);
+      salvarNotifFirebase(importNotif);
+      salvarSnapshot({arquivo:file.name,qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada});
+      const arqId = Date.now();
+      const arqData = {id:arqId,filename:file.name,dataNome:parseDateFromFilename(file.name),importadoEm:new Date().toISOString(),importadoFmt:new Date().toLocaleString('pt-BR'),qtdNova,qtdAtual,qtdSemAlter,qtdIgnorada,superseded:false,importadoPor:_fbUser?_fbUser.email:''};
+      db.ref('arquivos/'+arqId).set(arqData);
+      refresh();
+      showToast('Salvando dados... não feche a página.','');
+      db.ref('nfs').remove()
+        .then(() => salvarTodasNFsFirebase())
+        .then(() => salvarSnapshotFirebase())
+        .then(() => {
+          _importing = false;
+          const version = Date.now();
+          _lastNfsVersion = version;
+          db.ref('meta').update({importing: false, nfsVersion: version});
+          showToast('Dados salvos! Todos os usuários foram atualizados.','success');
+          refresh();
+        })
+        .catch(err => {
+          _importing = false;
+          db.ref('meta').update({importing: false});
+          showToast('Erro ao salvar: ' + err.message,'');
+        });
+
+
+      showToast(`Importação: ${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} inalterada(s) · ${qtdIgnorada} ignorada(s).`,'success');
+    }catch(err){showToast('Erro ao ler o arquivo.');console.error(err);}
+  };
+  r.readAsBinaryString(file);
+}
+
+function showToast(msg,tipo=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${tipo} show`;
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+</script>
+</body>
+</html>
