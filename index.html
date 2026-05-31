@@ -659,7 +659,7 @@
       <span style="font-size:12px;font-weight:700;color:var(--sap-blue);background:var(--sap-blue-light);border:1px solid #a4caee;padding:3px 10px;border-radius:3px;margin-left:4px" id="nf-total-val" style="display:none"></span>
     </div>
     <div class="tbl-wrap" style="border-radius:0 0 4px 4px">
-      <table><thead><tr><th>Nº NF</th><th>Fornecedor</th><th>Pedido de Compra</th><th>Valor (BRL)</th><th>Emissão</th><th>Vencimento</th><th>Dias em Aberto</th><th>Status</th><th>Etapas do Processo</th><th>Msgs</th><th>Ações</th></tr></thead>
+      <table><thead><tr><th>Nº NF</th><th>Fornecedor</th><th>Pedido de Compra</th><th>Valor (BRL)</th><th>Emissão</th><th>Vencimento</th><th>Dias em Aberto</th><th>Tipo NF</th><th>Etapas do Processo</th><th>Msgs</th><th>Ações</th></tr></thead>
       <tbody id="nf-tbody"><tr><td colspan="11"><div class="empty"><div class="eico">📂</div><h3>Nenhuma NF carregada</h3><p>Use "Importar Excel" acima</p></div></td></tr></tbody></table>
     </div>
   </div>
@@ -1174,7 +1174,7 @@ function exportarNFs(){
   const headers = [
     'Nº NF','Fornecedor','Pedido de Compra','Valor (BRL)',
     'Data Emissão','Vencimento','Dias em Aberto',
-    'Status','Etapa Atual','Áreas Envolvidas',
+    'Tipo NF','Status','Etapa Atual','Áreas Envolvidas',
     'Status MIGO','MIRO / Doc','Doc Pagamento',
     'Forma de Pagamento','Condições Pgto.',
     'Criador do Pedido','Requisitante','Depósito','Centro',
@@ -1189,6 +1189,7 @@ function exportarNFs(){
     fdate(n.emissao),
     fdate(calcVenc(n.emissao)),
     diasAberto(n.emissao)||0,
+    n.tipoNF||'Serviço',
     n.status,
     etapaAtual(n)||'',
     n.areas ? n.areas.join(', ') : '',
@@ -1931,7 +1932,7 @@ function renderNFTable(){
     <td><span class="link-cell" data-open="${n.id}">${n.num}</span></td>
     <td>${n.forn}</td><td>${n.pc||'—'}</td><td>${fval(n.val)}</td>
     <td>${fdate(n.emissao)}</td><td>${fdate(calcVenc(n.emissao))}</td><td>${n.status==='Pago'?'<span class="dias-normal">0</span>':diasHTML(n.emissao)}</td>
-    <td>${badge(n.status)}</td>
+    <td><span class="badge" style="${(n.tipoNF||'Serviço')==='Material'?'background:#e4f0fb;color:#0854a0;border-color:#a4caee':'background:#f3e5f5;color:#6a1a75;border-color:#ce93d8'}">${n.tipoNF||'Serviço'}</span></td>
     <td>${areasTagsHTML(n)}</td>
     <td style="text-align:center"><span class="badge" style="background:#f0f0f0;color:var(--muted);border-color:var(--border)">${n.msgs.length}</span></td>
     <td><button class="sap-btn" data-open="${n.id}">📝 Detalhar</button></td>
@@ -3283,10 +3284,18 @@ function parseRow(r, i){
   const deposito        = gs('deposito');       // col AA
   const centro          = gs('centro');         // col AB
 
+  // Tipo NF: col J = "Serviço" → Serviço; contém número → Material
+  const tipoNF = (()=>{
+    const s = String(cfop||'').trim();
+    if(!s || s==='-' || s==='—') return 'Serviço';
+    const nrm = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    if(nrm === 'servico' || nrm === 'serviço') return 'Serviço';
+    return /\d/.test(s) ? 'Material' : 'Serviço';
+  })();
   const etapas = determineEtapas(_pcRaw, _pedMigoRaw, miro, statusMigo);
   const areas  = areasFromEtapas(etapas);
 
-  return {num,forn,val,status,pagto,statusF,eleg,venc,emissao,pc,
+  return {num,forn,val,status,tipoNF,pagto,statusF,eleg,venc,emissao,pc,
           criador,cfop,pedMigo,migo,statusMigo,miro,docPgto,
           formaPgto,condPgto,diasAtePgto,adiant,vlrRep,posDup,dadosAdic,
           requisitante,deposito,centro,
@@ -3462,6 +3471,7 @@ function importFile(file){
             existing.vlrRep     = parsed.vlrRep;
             existing.posDup     = parsed.posDup;
             existing.dadosAdic    = parsed.dadosAdic;
+            existing.tipoNF       = parsed.tipoNF;
             existing.requisitante = parsed.requisitante;
             existing.deposito     = parsed.deposito;
             existing.centro      = parsed.centro;
