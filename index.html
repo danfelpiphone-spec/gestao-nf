@@ -1363,6 +1363,8 @@
           <option value="previsao">Previsão de Pagamento Informada</option>
         </select>
         <span class="period-clear" onclick="limparFiltrosConclusoes()">✕ Limpar</span>
+        <div class="tbar-sp"></div>
+        <button class="sap-btn" onclick="exportarPdfConclusoes()">🖨 Gerar PDF</button>
       </div>
       <div class="hist-summary">
         <div class="hist-kpi">
@@ -1437,6 +1439,8 @@
         <label style="font-size:12px;color:var(--muted)">até</label>
         <input type="date" class="period-input" id="tkst-ate" onchange="renderEstatisticasTracking()">
         <span class="period-clear" onclick="document.getElementById('tkst-de').value='';document.getElementById('tkst-ate').value='';renderEstatisticasTracking()">✕ Limpar</span>
+        <div class="tbar-sp"></div>
+        <button class="sap-btn" onclick="exportarPdfTracking()">🖨 Gerar PDF</button>
       </div>
       <div class="hist-summary">
         <div class="hist-kpi">
@@ -1507,6 +1511,7 @@
         </select>
         <span class="period-clear" onclick="limparFiltrosRelEnvios()">✕ Limpar</span>
         <div class="tbar-sp"></div>
+        <button class="sap-btn" onclick="exportarPdfRelatorioEnvios()">🖨 Gerar PDF</button>
         <button class="sap-btn" style="color:var(--green);border-color:var(--green)" onclick="exportarRelatorioEnvios()">⬇ Exportar Excel</button>
       </div>
       <div class="hist-summary">
@@ -5527,6 +5532,52 @@ function renderRelatorioEnvios(){
     </tr>`;
   }).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">Nenhum envio registrado. Gere e marque e-mails como enviados para popular o relatório.</td></tr>`;
 }
+// Gera PDF (via impressão do navegador) do conteúdo de um modal de relatório.
+// Clona a área de conteúdo, remove filtros/botões e abre janela pronta para imprimir.
+function gerarPdfRelatorio(modalId, titulo, filtros){
+  const modal = document.getElementById(modalId);
+  const body = modal?.querySelector('.modal-body');
+  if(!body){ showToast('Relatório não encontrado.',''); return; }
+  const clone = body.cloneNode(true);
+  clone.querySelectorAll('.tbar, .forn-actions, button, .period-clear').forEach(el=>el.remove());
+  const estilos = [...document.querySelectorAll('style')].map(s=>s.innerHTML).join('\n');
+  const win = window.open('', '_blank');
+  if(!win){ showToast('Permita pop-ups no navegador para gerar o PDF.',''); return; }
+  win.document.write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>'+titulo+'</title><style>'+estilos+
+    'body{padding:24px;background:#fff;font-family:Arial,sans-serif}'+
+    '.pdf-head{border-bottom:2px solid #0854a0;padding-bottom:10px;margin-bottom:16px}'+
+    '.pdf-head h1{font-size:19px;color:#063a72}'+
+    '.pdf-head .sub{font-size:12px;color:#6a6d70;margin-top:3px}'+
+    '.rel-card,.hist-kpi,tr{break-inside:avoid}'+
+    '@media print{@page{margin:14mm}}'+
+    '</style></head><body>'+
+    '<div class="pdf-head"><h1>'+titulo+'</h1>'+
+    '<div class="sub">Filtros: '+(filtros||'Todos os registros')+' &nbsp;·&nbsp; Gerado em '+new Date().toLocaleString('pt-BR')+'</div></div>'+
+    clone.innerHTML+
+    '</body></html>');
+  win.document.close(); win.focus();
+  setTimeout(()=>{ try{ win.print(); }catch(e){} }, 500);
+}
+
+function exportarPdfRelatorioEnvios(){
+  if(!_filtrarReminderLog().length){ showToast('Nada para gerar.',''); return; }
+  const de=document.getElementById('relenv-de').value, ate=document.getElementById('relenv-ate').value,
+        etap=document.getElementById('relenv-etapa').value, dep=document.getElementById('relenv-depto').value;
+  const filtros = [de?('De '+fdate(de)):'', ate?('até '+fdate(ate)):'', etap?('Etapa '+etap):'', dep?('Depto '+dep):''].filter(Boolean).join(' · ') || 'Todos os envios registrados';
+  gerarPdfRelatorio('rem-rel-ov', 'Relatório de Envios — Reminder', filtros);
+}
+function exportarPdfConclusoes(){
+  const de=document.getElementById('concl-dt-de').value, ate=document.getElementById('concl-dt-ate').value,
+        u=document.getElementById('concl-f-usuario').value, t=document.getElementById('concl-f-tipo').value;
+  const filtros = [de?('De '+fdate(de)):'', ate?('até '+fdate(ate)):'', u?('Usuário '+u):'', t?('Tipo '+t):''].filter(Boolean).join(' · ') || 'Todas as conclusões';
+  gerarPdfRelatorio('forms-concl-ov', 'Resumo de Conclusões — Forms', filtros);
+}
+function exportarPdfTracking(){
+  const de=document.getElementById('tkst-de').value, ate=document.getElementById('tkst-ate').value;
+  const filtros = [de?('De '+fdate(de)):'', ate?('até '+fdate(ate)):''].filter(Boolean).join(' · ') || 'Todo o período';
+  gerarPdfRelatorio('track-stats-ov', 'Estatísticas de Tracking', filtros);
+}
+
 function exportarRelatorioEnvios(){
   const list = _filtrarReminderLog();
   if(!list.length){ showToast('Nada para exportar.',''); return; }
