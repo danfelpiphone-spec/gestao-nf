@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confirmação de Dados — Fornecedor | Mills</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+  :root{ --sap-blue:#0854a0; --sap-blue-dark:#063a72; --shell:#354a5e; --border:#d9d9d9; --border-dark:#b0b0b0;
+    --text:#32363a; --muted:#6a6d70; --green:#107e3e; --green-bg:#f1fdf6; --yellow:#e76500; --yellow-bg:#fef7f1;
+    --red:#bb0000; --red-bg:#fff1f1; --r:6px; --font:Arial,'Helvetica Neue',sans-serif; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ background:#eef1f4; color:var(--text); font-family:var(--font); font-size:14px; min-height:100vh; padding:20px; }
+  .wrap{ max-width:640px; margin:0 auto; }
+  .shell{ background:var(--shell); color:#fff; border-radius:var(--r) var(--r) 0 0; padding:16px 22px; display:flex; align-items:center; gap:12px; }
+  .sap-box{ background:#0070c0; color:#fff; font-weight:700; letter-spacing:1px; padding:5px 9px; border-radius:4px; font-size:13px; }
+  .shell h1{ font-size:17px; font-weight:700; }
+  .card{ background:#fff; border:1px solid var(--border); border-top:none; border-radius:0 0 var(--r) var(--r); padding:22px; box-shadow:0 4px 16px rgba(0,0,0,.08); }
+  .intro{ font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:16px; }
+  .sec{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--sap-blue); border-bottom:2px solid #e4eef8; padding-bottom:5px; margin:18px 0 12px; }
+  .ro{ margin-bottom:11px; }
+  .ro label{ display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); margin-bottom:2px; }
+  .ro .val{ font-size:15px; font-weight:700; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .badge{ display:inline-block; font-size:13px; font-weight:700; padding:4px 12px; border-radius:20px; }
+  .badge.ted{ background:#e4f0fb; color:var(--sap-blue-dark); border:1px solid #a4caee; }
+  .badge.boleto{ background:#f3e9f7; color:#6a1a75; border:1px solid #ce93d8; }
+  .opt-sel{ border:2px solid var(--border-dark); border-radius:var(--r); padding:13px 14px; cursor:pointer; margin-bottom:10px; display:flex; align-items:center; gap:11px; }
+  .opt-sel:hover{ border-color:var(--sap-blue); }
+  .opt-sel.sel{ border-color:var(--green); background:var(--green-bg); }
+  .opt-sel .chk{ width:22px; height:22px; border:2px solid var(--border-dark); border-radius:5px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; }
+  .opt-sel.sel .chk{ background:var(--green); border-color:var(--green); }
+  .opt-sel .ot{ font-weight:700; }
+  .opt-sel .od{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .warn{ background:var(--yellow-bg); border:1px solid #f5c97e; border-radius:var(--r); padding:12px 14px; font-size:13px; color:#8a4500; line-height:1.6; margin-top:8px; }
+  .info-ted{ background:#e8f2fd; border:1px solid #a4caee; border-radius:var(--r); padding:10px 12px; font-size:12px; color:var(--sap-blue-dark); line-height:1.5; margin-bottom:12px; }
+  input,select{ width:100%; border:1px solid var(--border-dark); border-radius:var(--r); padding:9px 11px; font-family:var(--font); font-size:14px; outline:none; }
+  input:focus,select:focus,textarea:focus{ border-color:var(--sap-blue); box-shadow:0 0 0 2px rgba(8,84,160,.12); }
+  textarea{ width:100%; border:1px solid var(--border-dark); border-radius:var(--r); padding:10px; font-family:var(--font); font-size:14px; outline:none; min-height:90px; resize:vertical; }
+  .field{ margin-bottom:11px; }
+  .field label{ display:block; font-size:12px; font-weight:700; margin-bottom:4px; }
+  .req{ color:var(--red); }
+  .contato-row{ border:1px solid var(--border); border-radius:var(--r); padding:11px; margin-bottom:9px; position:relative; }
+  .contato-del{ position:absolute; top:8px; right:8px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; width:auto; padding:0; }
+  .contato-del:hover{ color:var(--red); }
+  .link-add{ color:var(--sap-blue); font-weight:700; font-size:13px; cursor:pointer; display:inline-block; margin-top:2px; }
+  .btns{ display:flex; gap:10px; margin-top:18px; }
+  .btn{ flex:1; border:none; font-family:var(--font); font-size:15px; font-weight:700; padding:13px; border-radius:var(--r); cursor:pointer; }
+  .btn.primary{ background:linear-gradient(to bottom,#1a73d4,#0854a0); color:#fff; }
+  .btn.ok{ background:linear-gradient(to bottom,#1a9c52,#107e3e); color:#fff; }
+  .btn.ghost{ background:#fff; border:1px solid var(--border-dark); color:var(--text); }
+  .btn:hover{ opacity:.92; }
+  .btn:disabled{ opacity:.55; cursor:not-allowed; }
+  .msg{ border-radius:var(--r); padding:12px; font-size:13px; margin-top:12px; display:none; line-height:1.6; }
+  .msg.err{ background:var(--red-bg); border:1px solid #f5b3b3; color:var(--red); display:block; }
+  .center-msg{ text-align:center; padding:10px 6px 4px; }
+  .center-msg .ico{ font-size:38px; }
+  .center-msg h2{ font-size:18px; color:var(--sap-blue-dark); margin:8px 0; }
+  .center-msg p{ font-size:14px; color:var(--text); line-height:1.7; max-width:520px; margin:0 auto; }
+  .done{ text-align:center; padding:30px 10px; }
+  .done .ico{ font-size:46px; }
+  .done h2{ color:var(--green); font-size:21px; margin:10px 0 6px; }
+  .done p{ color:var(--muted); line-height:1.6; }
+  .foot{ text-align:center; font-size:11px; color:var(--muted); margin-top:16px; line-height:1.6; }
+  .loading{ text-align:center; padding:40px; color:var(--muted); }
+  .hidden{ display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="shell"><span class="sap-box">MILLS</span><h1>Confirmação de Dados de Pagamento</h1></div>
+  <div class="card" id="card">
+    <div class="loading" id="loading">Carregando seus dados...</div>
+
+    <!-- TELA PRINCIPAL -->
+    <div id="screen-main" class="hidden">
+      <div class="intro">Prezado fornecedor, confira abaixo os dados registrados junto à Mills. Se estiverem corretos, clique em <strong>Confirmar</strong>. Se algum dado estiver incorreto, clique em <strong>Solicitar Atualização</strong>.</div>
+
+      <div class="sec">Identificação</div>
+      <div class="ro"><label>Razão Social</label><div class="val" id="v-razao">—</div></div>
+      <div class="grid2">
+        <div class="ro"><label>CNPJ</label><div class="val" id="v-cnpj">—</div></div>
+        <div class="ro"><label>Telefone cadastrado</label><div class="val" id="v-tel">—</div></div>
+      </div>
+
+      <div class="sec">Condição de Pagamento</div>
+      <div id="cond-single"></div>
+      <div id="cond-ambos" class="hidden">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Constam <strong>duas formas</strong> em nosso cadastro. Selecione a(s) correta(s):</div>
+        <div class="opt-sel" id="opt-boleto" onclick="toggleForma('Boleto')">
+          <div class="chk">✓</div><div><div class="ot">🧾 Boleto</div><div class="od">Recebimento via boleto bancário</div></div>
+        </div>
+        <div class="opt-sel" id="opt-ted" onclick="toggleForma('TED')">
+          <div class="chk">✓</div><div><div class="ot">💳 TED / Depósito</div><div class="od">Recebimento em conta bancária (informe os dados abaixo)</div></div>
+        </div>
+      </div>
+
+      <!-- DADOS BANCÁRIOS (input, obrigatório quando TED) -->
+      <div id="bank-section" class="hidden">
+        <div class="sec">Dados Bancários (para TED)</div>
+        <div class="info-ted">Para assegurar que seus recebimentos por TED sejam processados de forma correta e ágil, solicitamos a confirmação dos seus dados bancários abaixo: <strong>Banco, Agência e Conta</strong>.</div>
+        <div class="field"><label>Banco <span class="req">*</span></label><input id="b-banco" maxlength="60" placeholder="Nome ou número do banco"></div>
+        <div class="grid3">
+          <div class="field"><label>Agência <span class="req">*</span></label><input id="b-agencia" maxlength="12"></div>
+          <div class="field"><label>Conta <span class="req">*</span></label><input id="b-conta" maxlength="20"></div>
+          <div class="field"><label>Tipo</label><select id="b-tipoconta"><option>Corrente</option><option>Poupança</option></select></div>
+        </div>
+        <div class="field"><label>Chave PIX (opcional)</label><input id="b-pix" maxlength="80"></div>
+      </div>
+
+      <div class="sec">Prazo de Pagamento</div>
+      <div class="ro"><label>Prazo praticado</label><div class="val" id="v-prazo">—</div></div>
+      <div class="warn hidden" id="prazo-warn">Estimado fornecedor, para que o fluxo de pagamento seja o mais assertivo e tenha robustez, atendendo assim à sua expectativa, solicitamos que verifique o Prazo de Pagamento, pois a Mills tem como boa prática o prazo de pagamento mínimo de 30 dias.</div>
+
+      <div class="sec">Contato</div>
+      <div id="contatos"></div>
+      <span class="link-add" onclick="addContato()">+ Adicionar contato</span>
+
+      <div class="msg" id="msg-main"></div>
+      <div class="btns">
+        <button class="btn ghost" onclick="showScreen('warn')">Solicitar Atualização</button>
+        <button class="btn ok" onclick="confirmar()">✓ Confirmar</button>
+      </div>
+    </div>
+
+    <!-- TELA DE AVISO -->
+    <div id="screen-warn" class="hidden">
+      <div class="center-msg">
+        <div class="ico">⚠️</div>
+        <h2>Atualização de Dados</h2>
+        <p>Estimado fornecedor, essa atualização só permite a atualização de algum dado incorreto. A alteração da Condição de Pagamento (Boleto ou TED) não é permitida. A Condição de Pagamento considerada será a que está sendo praticada junto à Mills.</p>
+      </div>
+      <div class="btns">
+        <button class="btn ghost" onclick="showScreen('main')">← Voltar</button>
+        <button class="btn primary" onclick="showScreen('edit')">Atualizar</button>
+      </div>
+    </div>
+
+    <!-- TELA DE ATUALIZAÇÃO (observação) -->
+    <div id="screen-edit" class="hidden">
+      <div class="intro">Descreva abaixo qual dado do seu cadastro está incorreto. Nossa equipe fará a análise. Os dados bancários e contatos preenchidos na tela anterior serão enviados junto.</div>
+      <div class="sec">Descrição da inconsistência</div>
+      <div class="field"><label>O que precisa ser corrigido? <span class="req">*</span></label>
+        <textarea id="e-obs" maxlength="500" placeholder="Ex.: A razão social está desatualizada; o CNPJ correto é...; etc."></textarea></div>
+      <div class="msg" id="msg-edit"></div>
+      <div class="btns">
+        <button class="btn ghost" onclick="showScreen('warn')">← Voltar</button>
+        <button class="btn ok" onclick="enviarAtualizacao()">✓ Confirmar e Enviar</button>
+      </div>
+    </div>
+
+    <!-- SUCESSO -->
+    <div id="screen-done" class="hidden">
+      <div class="done"><div class="ico">✅</div><h2>Dados enviados com sucesso!</h2>
+        <p id="done-txt">Obrigado. Suas informações foram registradas e serão utilizadas para atualização do seu cadastro.</p></div>
+    </div>
+
+    <div class="foot">Seus dados são utilizados exclusivamente para fins de cadastro e pagamento.<br>Em caso de dúvida, responda ao e-mail que originou este link.</div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBaWlNBg1pWe8sMSKbZGdWWPLHZWET8890",
+  authDomain: "danfelproject.firebaseapp.com",
+  databaseURL: "https://danfelproject-default-rtdb.firebaseio.com",
+  projectId: "danfelproject",
+  storageBucket: "danfelproject.firebasestorage.app",
+  messagingSenderId: "474832580279",
+  appId: "1:474832580279:web:61055352610d4f1a03a732"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const TOKEN = new URLSearchParams(location.search).get('t') || '';
+let F = null;
+let formaEscolhida = [];   // caso "Ambos"
+
+function showScreen(name){
+  ['main','warn','edit','done'].forEach(s=>document.getElementById('screen-'+s).classList.toggle('hidden', s!==name));
+  window.scrollTo(0,0);
+}
+function erroFatal(txt){ document.getElementById('loading').innerHTML = '<div style="color:var(--red);font-weight:700">'+txt+'</div>'; }
+
+if(!TOKEN){ erroFatal('Link inválido ou expirado. Solicite um novo link.'); }
+else {
+  db.ref('comunicacaoFornecedores/'+TOKEN).once('value').then(snap=>{
+    F = snap.val();
+    if(!F){ erroFatal('Não localizamos seus dados. O link pode ter expirado — solicite um novo.'); return; }
+    montarCard();
+  }).catch(()=>{ erroFatal('Não foi possível carregar seus dados agora. Tente novamente em instantes.'); });
+}
+
+// Formas resolvidas (para saber se exige dados bancários)
+function formasResolvidas(){
+  if(F.formaAtual==='Ambos') return formaEscolhida.slice();
+  return F.formaAtual ? [F.formaAtual] : [];
+}
+function exigeBanco(){ return formasResolvidas().includes('TED'); }
+
+function montarCard(){
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('v-razao').textContent = F.nome || '—';
+  document.getElementById('v-cnpj').textContent  = F.cnpj || '—';
+  document.getElementById('v-tel').textContent   = F.telefoneCad || '—';
+
+  // reset (idempotente)
+  formaEscolhida = [];
+  document.getElementById('prazo-warn').classList.add('hidden');
+  document.getElementById('cond-ambos').classList.add('hidden');
+  document.getElementById('cond-single').innerHTML = '';
+  document.getElementById('msg-main').className = 'msg';
+  document.getElementById('contatos').innerHTML = '';
+
+  const forma = F.formaAtual || '';
+  if(forma==='Ambos'){
+    document.getElementById('cond-ambos').classList.remove('hidden');
+  } else {
+    const badge = forma==='Boleto' ? '<span class="badge boleto">🧾 Boleto</span>' : '<span class="badge ted">💳 TED / Depósito</span>';
+    document.getElementById('cond-single').innerHTML = '<div class="ro"><label>Forma de recebimento</label><div>'+badge+'</div></div>';
+  }
+  aplicarVisibilidadeBanco();
+
+  const prazo = parseInt(F.prazo||'0',10) || 0;
+  document.getElementById('v-prazo').textContent = prazo ? (prazo+' dias') : '—';
+  if(prazo>0 && prazo<28) document.getElementById('prazo-warn').classList.remove('hidden');
+
+  addContato(F.email||'');
+  showScreen('main');
+}
+
+function toggleForma(f){
+  const i = formaEscolhida.indexOf(f);
+  if(i>=0) formaEscolhida.splice(i,1); else formaEscolhida.push(f);
+  document.getElementById('opt-boleto').classList.toggle('sel', formaEscolhida.includes('Boleto'));
+  document.getElementById('opt-ted').classList.toggle('sel', formaEscolhida.includes('TED'));
+  aplicarVisibilidadeBanco();
+}
+function aplicarVisibilidadeBanco(){
+  document.getElementById('bank-section').classList.toggle('hidden', !exigeBanco());
+}
+
+// Contatos (obrigatórios: Nome, E-mail, Telefone, Departamento)
+function addContato(email){
+  const wrap = document.getElementById('contatos');
+  const div = document.createElement('div');
+  div.className = 'contato-row';
+  div.innerHTML =
+    '<button class="contato-del" title="Remover" onclick="this.parentNode.remove()">✕</button>' +
+    '<div class="grid2"><div class="field"><label>Nome do responsável <span class="req">*</span></label><input class="c-nome" maxlength="80"></div>' +
+    '<div class="field"><label>Departamento <span class="req">*</span></label><input class="c-depto" maxlength="60"></div></div>' +
+    '<div class="grid2"><div class="field" style="margin-bottom:0"><label>E-mail <span class="req">*</span></label><input class="c-email" type="email" maxlength="80" value="'+(email||'').replace(/"/g,'&quot;')+'"></div>' +
+    '<div class="field" style="margin-bottom:0"><label>Telefone <span class="req">*</span></label><input class="c-tel" maxlength="20"></div></div>';
+  wrap.appendChild(div);
+}
+function coletarContatos(){
+  const out = [];
+  document.querySelectorAll('#contatos .contato-row').forEach(r=>{
+    const nome = r.querySelector('.c-nome').value.trim();
+    const email = r.querySelector('.c-email').value.trim();
+    const telefone = r.querySelector('.c-tel').value.trim();
+    const departamento = r.querySelector('.c-depto').value.trim();
+    if(nome||email||telefone||departamento) out.push({nome, email, telefone, departamento});
+  });
+  return out;
+}
+function contatosValidos(cs){
+  return cs.length>0 && cs.every(c=>c.nome && c.email && c.email.includes('@') && c.telefone && c.departamento);
+}
+function coletarBanco(){
+  return {
+    banco: document.getElementById('b-banco').value.trim(),
+    agencia: document.getElementById('b-agencia').value.trim(),
+    conta: document.getElementById('b-conta').value.trim(),
+    tipoConta: document.getElementById('b-tipoconta').value,
+    pix: document.getElementById('b-pix').value.trim()
+  };
+}
+function msg(id, txt){ const m=document.getElementById(id); m.textContent=txt; m.className='msg err'; }
+
+function validarPrincipal(msgId){
+  const contatos = coletarContatos();
+  if(!contatosValidos(contatos)){ msg(msgId,'Em cada contato, preencha Nome, E-mail, Telefone e Departamento.'); return null; }
+  if(F.formaAtual==='Ambos' && !formaEscolhida.length){ msg(msgId,'Selecione qual forma de recebimento está correta.'); return null; }
+  const banco = coletarBanco();
+  if(exigeBanco() && (!banco.banco || !banco.agencia || !banco.conta)){ msg(msgId,'Para recebimento por TED, informe Banco, Agência e Conta.'); return null; }
+  const formaEscolhidaStr = F.formaAtual==='Ambos' ? formaEscolhida.join('+') : F.formaAtual;
+  return {contatos, banco: exigeBanco()?banco:{banco:'',agencia:'',conta:'',tipoConta:'',pix:''}, formaEscolhidaStr};
+}
+
+function confirmar(){
+  const d = validarPrincipal('msg-main'); if(!d) return;
+  enviarResposta('confirmado', d, '');
+}
+function enviarAtualizacao(){
+  const obs = document.getElementById('e-obs').value.trim();
+  if(!obs){ msg('msg-edit','Descreva o dado que precisa ser corrigido.'); return; }
+  const d = validarPrincipal('msg-edit'); if(!d){ showScreen('main'); return; }
+  enviarResposta('atualizacao', d, obs);
+}
+
+function enviarResposta(tipo, d, observacao){
+  const resposta = {
+    token: TOKEN, tipoResposta: tipo,
+    razaoSocial: F.nome||'', cnpj: F.cnpj||'',
+    telefoneCad: F.telefoneCad||'',
+    formaAtual: F.formaAtual||'', formaEscolhida: d.formaEscolhidaStr||'',
+    prazo: F.prazo||'',
+    banco: d.banco.banco||'', agencia: d.banco.agencia||'', conta: d.banco.conta||'',
+    tipoConta: d.banco.tipoConta||'', pix: d.banco.pix||'',
+    observacao: observacao||'',
+    contatos: d.contatos,
+    respondidoEm: new Date().toISOString(),
+    respondidoFmt: new Date().toLocaleString('pt-BR')
+  };
+  db.ref('comunicacaoRespostas/'+TOKEN).set(resposta).then(()=>{
+    document.getElementById('done-txt').textContent = tipo==='atualizacao'
+      ? 'Recebemos sua solicitação de atualização. Nossa equipe fará a análise e o ajuste no cadastro.'
+      : 'Obrigado por confirmar seus dados. Eles serão utilizados para os próximos pagamentos.';
+    showScreen('done');
+  }).catch(err=>{ msg(tipo==='atualizacao'?'msg-edit':'msg-main','Não foi possível enviar agora ('+err.message+'). Tente novamente.'); });
+}
+</script>
+</body>
+</html>
