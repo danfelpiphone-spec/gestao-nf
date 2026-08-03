@@ -1954,6 +1954,12 @@ function iniciarApp(user){
     if(document.getElementById('rem-rel-ov')?.classList.contains('open')) renderRelatorioEnvios();
   });
 
+  // Forms — log de sessões de verificação
+  db.ref('verificacaoLog').on('value', snap => {
+    const data = snap.val();
+    verificacaoLog = data ? Object.values(data).sort((a,b)=>(b.fimTs||0)-(a.fimTs||0)) : [];
+  });
+
   // Comunicação — fornecedores e respostas
   db.ref('comunicacaoFornecedores').on('value', snap => {
     const data = snap.val();
@@ -2115,6 +2121,12 @@ function salvarFormsSolicitacaoFirebase(s){
 let reminderLog = [];
 function salvarReminderLogFirebase(entry){
   db.ref('reminderLog/' + entry.id).set(entry);
+}
+
+// Log de sessões de "Verificando" do Forms (para medição de performance por usuário)
+let verificacaoLog = [];
+function salvarVerificacaoLogFirebase(entry){
+  db.ref('verificacaoLog/' + entry.id).set(entry);
 }
 
 function limparFormsBase(){
@@ -4466,7 +4478,10 @@ function renderForms(){
     ].join('');
 
     const verif = statusVerificacaoForns(g.empresa);
-    const verifBadge = verif ? `<div style="font-size:11px;color:var(--sap-blue);font-weight:700;margin-bottom:7px">👤 Em verificação: ${verif.por}</div>` : '';
+    const ativoV = statusVerificandoAtivo(g.empresa);
+    const verifBadge =
+      (ativoV ? `<div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:4px">🔍 Verificando agora: ${ativoV.por}</div>` : '') +
+      (verif  ? `<div style="font-size:11px;color:var(--sap-blue);font-weight:700;margin-bottom:7px">👤 Responsável: ${verif.por}</div>` : '');
 
     return `<div class="forn-card ${classeBorda}" data-empresa="${(g.empresa||'').replace(/"/g,'&quot;')}">
       <div class="forn-card-nome">${g.empresa}<span class="forn-card-qtd">${g.pares.length} NF${g.pares.length!==1?'s':''}</span></div>
@@ -4548,15 +4563,20 @@ function abrirPainelFornecedor(empresa){
     </tr>`;
   }).join('') || `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Nenhuma NF para este fornecedor.</td></tr>`;
 
-  // Status de verificação (atribuição) do fornecedor
+  // Status do fornecedor: atribuição (responsável) e/ou verificação ativa (tratando agora)
   const verif = statusVerificacaoForns(empresa);
+  const ativo = statusVerificandoAtivo(empresa);
   const stEl = document.getElementById('ff-status');
+  let stHTML = '';
   if(verif){
-    stEl.innerHTML = `<div style="background:#e4f0fb;border:1px solid #a4caee;border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--sap-blue-dark)">
-      🔵 <strong>Em verificação</strong> por <strong>${verif.por}</strong> desde ${fdate(verif.em)} ${verif.hora||''}</div>`;
-  } else {
-    stEl.innerHTML = '';
+    stHTML += `<div style="background:#e4f0fb;border:1px solid #a4caee;border-radius:var(--r);padding:8px 12px;margin-bottom:8px;font-size:12px;color:var(--sap-blue-dark)">
+      👤 <strong>Responsável (atribuído):</strong> ${verif.por} — desde ${fdate(verif.em)} ${verif.hora||''}</div>`;
   }
+  if(ativo){
+    stHTML += `<div style="background:var(--green-bg);border:1px solid #a9d5b5;border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--green)">
+      🔍 <strong>Verificando agora:</strong> ${ativo.por}${ativo.inicioFmt?' — desde '+ativo.inicioFmt:''}</div>`;
+  }
+  stEl.innerHTML = stHTML;
 
   // Ações contextuais
   const temPago     = itens.some(i=>i.cls==='pago');
@@ -4564,6 +4584,10 @@ function abrirPainelFornecedor(empresa){
   const temProblema = itens.some(i=>i.cls==='invalido'||i.cls==='nao');
   const temPendente = itens.some(i=>i.cls==='pendente');
   const acoes = [];
+  const eumVerificando = ativo && ativo.por===nomeUsuarioAtual();
+  acoes.push(eumVerificando
+    ? `<button class="sap-btn" style="color:var(--green);border-color:var(--green)" onclick="acaoToggleVerificando()">⏹ Concluir verificação</button>`
+    : `<button class="sap-btn" onclick="acaoToggleVerificando()">🔍 Verificando${ativo?' (por '+ativo.por+')':''}</button>`);
   if(temPendente) acoes.push(`<button class="sap-btn" style="color:var(--sap-blue);border-color:var(--sap-blue)" onclick="acaoAtribuir()">👤 ${verif?'Reatribuir a mim':'Atribuir a mim'}</button>`);
   if(temPago)     acoes.push(`<button class="sap-btn primary" onclick="acaoInformarPagamento()">✉ Informar Pagamento</button>`);
   if(temPrevFIN)  acoes.push(`<button class="sap-btn primary" onclick="acaoSalvarPrevisao()">💾 Salvar Previsão e Enviar</button>`);
@@ -4616,6 +4640,46 @@ function acaoAtribuir(){
   showToast(`Atribuído a ${por}. Verificação iniciada.`,'success');
   abrirPainelFornecedor(empresa); // re-renderiza o painel com o status
   renderForms();                  // atualiza o card na tela principal
+}
+
+// Status "Verificando agora" (tratamento ativo) de um fornecedor
+function statusVerificandoAtivo(empresa){
+  const sol = formsSolicitacoes.find(s=>(s.empresa||'')===empresa && s.verificandoPor);
+  return sol ? {por:sol.verificandoPor, inicioTs:sol.verificandoInicioTs, inicioFmt:sol.verificandoInicioFmt} : null;
+}
+
+// AÇÃO: Verificando — marca/desmarca tratamento ATIVO agora (distinto de "Atribuir").
+// Registra início ao iniciar e grava a sessão (com duração) ao finalizar → medição de performance.
+function acaoToggleVerificando(){
+  const empresa = _ffEmpresaAtual; if(!empresa) return;
+  const me = nomeUsuarioAtual();
+  const ativo = statusVerificandoAtivo(empresa);
+  const sols = formsSolicitacoes.filter(s=>(s.empresa||'')===empresa);
+  const agora = new Date();
+  const fmt = _pad2(agora.getDate())+'/'+_pad2(agora.getMonth()+1)+' '+_pad2(agora.getHours())+':'+_pad2(agora.getMinutes());
+
+  if(ativo && ativo.por===me){
+    // Finaliza a minha sessão de verificação → grava no log com duração
+    const inicioTs = ativo.inicioTs || agora.getTime();
+    const entry = {
+      id: 'vf_'+Date.now(), ts: Date.now(), empresa, por: me,
+      inicioTs, inicioFmt: ativo.inicioFmt||'', fimTs: agora.getTime(), fimFmt: fmt,
+      duracaoMin: Math.max(0, Math.round((agora.getTime()-inicioTs)/60000)),
+      data: agora.getFullYear()+'-'+_pad2(agora.getMonth()+1)+'-'+_pad2(agora.getDate())
+    };
+    verificacaoLog.unshift(entry); salvarVerificacaoLogFirebase(entry);
+    sols.forEach(s=>{ s.verificandoPor=null; s.verificandoInicioTs=null; s.verificandoInicioFmt=null; salvarFormsSolicitacaoFirebase(s); });
+    showToast(`Verificação finalizada (${entry.duracaoMin} min).`,'success');
+  } else if(ativo && ativo.por!==me && !isOwner()){
+    showToast(`Este fornecedor já está sendo verificado por ${ativo.por}.`,'');
+    return;
+  } else {
+    // Inicia a minha sessão (ou assume, se owner)
+    sols.forEach(s=>{ s.verificandoPor=me; s.verificandoInicioTs=agora.getTime(); s.verificandoInicioFmt=fmt; salvarFormsSolicitacaoFirebase(s); });
+    showToast(`Você está verificando ${empresa} agora.`,'success');
+  }
+  abrirPainelFornecedor(empresa);
+  renderForms();
 }
 
 function closePainelFornecedor(e){
@@ -5806,8 +5870,9 @@ function _corpoConvite(f, link){
     `Prezados ${f.nome||''},`,'',
     'Para mantermos seu cadastro atualizado e garantir o pagamento correto, solicitamos a confirmação da condição de pagamento, dos dados bancários e da forma de recebimento (TED ou Boleto).',
     '',
-    'Por favor, acesse o link abaixo e preencha as informações:',
+    'Por favor, clique no link abaixo e preencha as informações:',
     link,'',
+    'Caso o link não abra diretamente ao clicar, copie o endereço acima e cole na barra de endereços do seu navegador (Chrome, Edge, etc.).','',
     'O preenchimento leva menos de 2 minutos. Agradecemos a colaboração.','',
     'Atenciosamente,','Contas a Pagar - Mills'
   ].join('\n');
@@ -5872,7 +5937,6 @@ function verRespostaComunicacao(token){
     cel('Forma Escolhida', r.formaEscolhida) + cel('Prazo (dias)', r.prazo) +
     cel('Banco', r.banco) + cel('Agência', r.agencia) +
     cel('Conta', r.conta) + cel('Tipo de Conta', r.tipoConta) +
-    cel('Chave PIX', r.pix) +
     `<div class="dcell"><label>Tipo</label><div class="dval">${tipoTxt}</div></div>` +
     (r.observacao?`<div class="dcell" style="grid-column:span 2;border-top:2px solid var(--yellow)"><label>Observação do fornecedor</label><div class="dval">${r.observacao}</div></div>`:'') +
     `<div class="dcell" style="grid-column:span 2"><label>Contatos</label><div class="dval">${contatosTxt}</div></div>`;
@@ -5887,11 +5951,11 @@ function closeRespostaComunicacao(e){
 function exportarRespostasComunicacao(){
   const respondidos = comunicacaoFornecedores.filter(f=>comunicacaoRespostas[f.token]);
   if(!respondidos.length){ showToast('Nenhuma resposta para exportar.',''); return; }
-  const headers = ['Fornecedor','CNPJ','Tipo Resposta','Forma Escolhida','Prazo (dias)','Banco','Agência','Conta','Tipo Conta','Chave PIX','Observação','Contatos','Respondido em'];
+  const headers = ['Fornecedor','CNPJ','Tipo Resposta','Forma Escolhida','Prazo (dias)','Banco','Agência','Conta','Tipo Conta','Observação','Contatos','Respondido em'];
   const rows = respondidos.map(f=>{ const r=comunicacaoRespostas[f.token]; return [
     r.razaoSocial||f.nome||'', r.cnpj||f.cnpj||'',
     r.tipoResposta==='atualizacao'?'Atualização':'Confirmado', r.formaEscolhida||'', r.prazo||'',
-    r.banco||'', r.agencia||'', r.conta||'', r.tipoConta||'', r.pix||'', r.observacao||'',
+    r.banco||'', r.agencia||'', r.conta||'', r.tipoConta||'', r.observacao||'',
     (r.contatos||[]).map(c=>`${c.nome||''} <${c.email||''}> tel:${c.telefone||''} dep:${c.departamento||''}`).join('; '),
     r.respondidoFmt||''
   ];});

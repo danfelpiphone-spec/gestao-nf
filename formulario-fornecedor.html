@@ -107,7 +107,6 @@
           <div class="field"><label>Conta <span class="req">*</span></label><input id="b-conta" maxlength="20"></div>
           <div class="field"><label>Tipo</label><select id="b-tipoconta"><option>Corrente</option><option>Poupança</option></select></div>
         </div>
-        <div class="field"><label>Chave PIX (opcional)</label><input id="b-pix" maxlength="80"></div>
       </div>
 
       <div class="sec">Prazo de Pagamento</div>
@@ -274,8 +273,7 @@ function coletarBanco(){
     banco: document.getElementById('b-banco').value.trim(),
     agencia: document.getElementById('b-agencia').value.trim(),
     conta: document.getElementById('b-conta').value.trim(),
-    tipoConta: document.getElementById('b-tipoconta').value,
-    pix: document.getElementById('b-pix').value.trim()
+    tipoConta: document.getElementById('b-tipoconta').value
   };
 }
 function msg(id, txt){ const m=document.getElementById(id); m.textContent=txt; m.className='msg err'; }
@@ -287,7 +285,7 @@ function validarPrincipal(msgId){
   const banco = coletarBanco();
   if(exigeBanco() && (!banco.banco || !banco.agencia || !banco.conta)){ msg(msgId,'Para recebimento por TED, informe Banco, Agência e Conta.'); return null; }
   const formaEscolhidaStr = F.formaAtual==='Ambos' ? formaEscolhida.join('+') : F.formaAtual;
-  return {contatos, banco: exigeBanco()?banco:{banco:'',agencia:'',conta:'',tipoConta:'',pix:''}, formaEscolhidaStr};
+  return {contatos, banco: exigeBanco()?banco:{banco:'',agencia:'',conta:'',tipoConta:''}, formaEscolhidaStr};
 }
 
 function confirmar(){
@@ -309,7 +307,7 @@ function enviarResposta(tipo, d, observacao){
     formaAtual: F.formaAtual||'', formaEscolhida: d.formaEscolhidaStr||'',
     prazo: F.prazo||'',
     banco: d.banco.banco||'', agencia: d.banco.agencia||'', conta: d.banco.conta||'',
-    tipoConta: d.banco.tipoConta||'', pix: d.banco.pix||'',
+    tipoConta: d.banco.tipoConta||'',
     observacao: observacao||'',
     contatos: d.contatos,
     respondidoEm: new Date().toISOString(),
