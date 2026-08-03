@@ -4273,8 +4273,15 @@ function importFormsFile(file){
       const cEmpresa= find(h=>h.includes('nome da empresa'));
       const cCnpj   = find(h=>h.includes('cnpj'));
       // Pares PC/NF: colunas com "pedido de compra" e "nota fiscal", na ordem
-      const pcCols=[], nfCols=[];
+      let pcCols=[], nfCols=[];
       H.forEach((h,i)=>{ if(h.includes('pedido de compra')) pcCols.push(i); else if(h.includes('nota fiscal')) nfCols.push(i); });
+      // Layout real confirmado (03/08/2026): 5 pares em L/M, N/O, P/Q, R/S, T/U (índices 11-20).
+      // Se a detecção por nome de cabeçalho não achar os 5 pares (título mudou de novo),
+      // cai para essas colunas fixas como rede de segurança.
+      if(pcCols.length < 5 || nfCols.length < 5){
+        pcCols = [11,13,15,17,19];
+        nfCols = [12,14,16,18,20];
+      }
       const nPares = Math.max(pcCols.length, nfCols.length);
       const gv = (row,idx,fb)=> String((idx>=0 ? row[idx] : row[fb]) ?? '').trim();
 
