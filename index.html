@@ -1328,6 +1328,7 @@
       <div class="tbl-wrap">
         <table class="rel-tbl forn-panel-tbl">
           <thead><tr>
+            <th style="width:26px" title="Selecionar para reenvio"><input type="checkbox" onclick="ffMarcarTodosReenvio(this.checked)" title="Selecionar todas"></th>
             <th>Nº NF</th><th>PC Informado</th><th>Situação</th><th>Valor</th>
             <th>Vencimento</th><th>Dias em Aberto</th><th>Etapa</th><th>Previsão Pgto</th>
           </tr></thead>
@@ -4529,17 +4530,23 @@ function abrirPainelFornecedor(empresa){
     const regHTML = par.concluidoEm
       ? `<div style="font-size:10px;color:var(--green);font-weight:700;margin-top:3px">✓ ${rotuloAcaoForms(par.concluidoTipo)} · ${fdate(par.concluidoEm)} ${par.concluidoHora||''}${par.concluidoPor?' · '+par.concluidoPor:''}</div>`
       : '';
+    // Registro de aviso de andamento (interino — não encerra a NF)
+    const avisoHTML = (par.avisoEm && !par.concluidoEm)
+      ? `<div style="font-size:10px;color:var(--sap-blue);font-weight:700;margin-top:3px">📨 Aviso de andamento · ${fdate(par.avisoEm)} ${par.avisoHora||''}${par.avisoPor?' · '+par.avisoPor:''}</div>`
+      : '';
+    const jaTratada = !!par.concluidoEm;
     return `<tr>
+      <td style="text-align:center"><input type="checkbox" class="ff-sel-reenvio" data-key="${((par.pc||'')+'||'+(par.nf||'')).replace(/"/g,'&quot;')}" ${problema&&!jaTratada?'checked':''} ${jaTratada?'disabled':''} title="${jaTratada?'Já tratada':'Selecionar para solicitar reenvio'}"></td>
       <td>${nf?`<span class="link-cell" data-open="${nf.id}">${par.nf}</span>`:par.nf}</td>
       <td class="mono">${par.pc||'—'}</td>
-      <td><span class="badge" style="${cor}">${sit.label}</span>${regHTML}</td>
+      <td><span class="badge" style="${cor}">${sit.label}</span>${regHTML}${avisoHTML}</td>
       <td>${problema?'—':(nf?fval(nf.val):'—')}</td>
       <td>${problema?'—':(nf?fdate(calcVenc(nf.emissao)):'—')}</td>
       <td style="text-align:center">${problema?'—':(nf?diasHTML(nf.emissao):'—')}</td>
       <td>${etapaCel}</td>
       <td>${prevCel}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">Nenhuma NF para este fornecedor.</td></tr>`;
+  }).join('') || `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Nenhuma NF para este fornecedor.</td></tr>`;
 
   // Status de verificação (atribuição) do fornecedor
   const verif = statusVerificacaoForns(empresa);
@@ -4560,7 +4567,10 @@ function abrirPainelFornecedor(empresa){
   if(temPendente) acoes.push(`<button class="sap-btn" style="color:var(--sap-blue);border-color:var(--sap-blue)" onclick="acaoAtribuir()">👤 ${verif?'Reatribuir a mim':'Atribuir a mim'}</button>`);
   if(temPago)     acoes.push(`<button class="sap-btn primary" onclick="acaoInformarPagamento()">✉ Informar Pagamento</button>`);
   if(temPrevFIN)  acoes.push(`<button class="sap-btn primary" onclick="acaoSalvarPrevisao()">💾 Salvar Previsão e Enviar</button>`);
-  if(temProblema) acoes.push(`<button class="sap-btn" style="color:var(--red);border-color:var(--red)" onclick="acaoSolicitarReenvio()">✉ Solicitar Reenvio</button>`);
+  if(temPendente) acoes.push(`<button class="sap-btn" style="color:var(--sap-blue);border-color:var(--sap-blue)" onclick="acaoAvisoAndamento()">📨 Avisar Andamento</button>`);
+  // Solicitar Reenvio agora age sobre as NFs SELECIONADAS (checkbox) — permite forçar
+  // o reenvio de qualquer NF (ex.: PC divergente), não só as inválidas/não localizadas.
+  if(itens.some(i=>!i.par.concluidoEm)) acoes.push(`<button class="sap-btn" style="color:var(--red);border-color:var(--red)" onclick="acaoSolicitarReenvio()">✉ Solicitar Reenvio (selecionadas)</button>`);
   acoes.push(`<button class="sap-btn" onclick="closePainelFornecedor()">Fechar</button>`);
   document.getElementById('ff-actions').innerHTML = acoes.join('');
 
@@ -4686,9 +4696,19 @@ function acaoSalvarPrevisao(){
 }
 
 // AÇÃO: Solicitar reenvio (NFs não localizadas / PC inválido) — e-mail agrupado
+// Marca/desmarca todas as caixas de reenvio (exceto as já tratadas/desabilitadas)
+function ffMarcarTodosReenvio(marcar){
+  document.querySelectorAll('#ff-tbody input.ff-sel-reenvio:not(:disabled)').forEach(c=>{ c.checked = marcar; });
+}
+
 function acaoSolicitarReenvio(){
   const empresa = _ffEmpresaAtual; if(!empresa) return;
-  const itens = paresDoFornecedor(empresa).filter(i=>i.cls==='invalido'||i.cls==='nao');
+  // Age sobre as NFs SELECIONADAS no painel (checkbox). Problemáticas já vêm marcadas,
+  // mas o usuário pode marcar qualquer NF (ex.: PC divergente) para forçar o reenvio.
+  const chaves = new Set([...document.querySelectorAll('#ff-tbody input.ff-sel-reenvio:checked')].map(c=>c.getAttribute('data-key')));
+  if(!chaves.size){ showToast('Selecione ao menos uma NF (caixa à esquerda) para solicitar o reenvio.',''); return; }
+  const itens = paresDoFornecedor(empresa).filter(i=> chaves.has((i.par.pc||'')+'||'+(i.par.nf||'')));
+  if(!itens.length){ showToast('Nenhuma NF válida selecionada.',''); return; }
   const {email, nome} = _contatoFornecedor(empresa);
 
   const listaNF = itens.map(({par})=>`NF ${par.nf||'—'} / PC ${par.pc||'—'}`).join(', ');
@@ -4712,6 +4732,37 @@ function acaoSolicitarReenvio(){
   showToast(`Reenvio solicitado registrado às ${horaAgoraForms()}.`,'success');
 
   _abrirEmail(`[GestãoNF] Solicitação Não Processada — ${empresa} — Reenvio Necessário`, `${nome?nome+' — ':''}${email||'(e-mail não informado)'}`, corpo, email);
+}
+
+// AÇÃO: Avisar Andamento — mensagem tranquilizadora ao fornecedor (recebemos e estamos
+// tratando), SEM expor a etapa interna e SEM encerrar a NF (segue pendente até o retorno final).
+function acaoAvisoAndamento(){
+  const empresa = _ffEmpresaAtual; if(!empresa) return;
+  const itens = paresDoFornecedor(empresa).filter(i=>i.cls==='pendente');
+  if(!itens.length){ showToast('Nenhuma NF pendente para avisar.',''); return; }
+  const {email, nome} = _contatoFornecedor(empresa);
+
+  const listaNF = itens.map(({par})=>`NF ${par.nf||'—'}`).join(', ');
+  const corpo = [
+    'Prezados,','',
+    `Confirmamos o recebimento e a identificação da(s) nota(s) fiscal(is): ${listaNF}.`,'',
+    'Informamos que sua solicitação já está em tratamento por nossa equipe. Em breve você receberá um retorno final, dentro do prazo acordado.','',
+    'Agradecemos o contato e permanecemos à disposição para eventuais dúvidas.','',
+    'Atenciosamente,','Contas a Pagar - Sistema GestãoNF'
+  ].join('\n');
+
+  const agora = new Date();
+  const dia  = agora.getFullYear()+'-'+String(agora.getMonth()+1).padStart(2,'0')+'-'+String(agora.getDate()).padStart(2,'0');
+  const hora = String(agora.getHours()).padStart(2,'0')+':'+String(agora.getMinutes()).padStart(2,'0');
+  const por  = nomeUsuarioAtual();
+  const solsAfetados = new Set();
+  itens.forEach(({sol,par})=>{ par.avisoEm=dia; par.avisoHora=hora; par.avisoPor=por; solsAfetados.add(sol); });
+  solsAfetados.forEach(sol=>salvarFormsSolicitacaoFirebase(sol));
+  renderForms();
+  abrirPainelFornecedor(empresa);
+  showToast(`Aviso de andamento registrado às ${horaAgoraForms()}.`,'success');
+
+  _abrirEmail(`[GestãoNF] Recebemos a sua solicitação — ${empresa}`, `${nome?nome+' — ':''}${email||'(e-mail não informado)'}`, corpo, email);
 }
 
 // Nome do usuário logado, para registro de quem concluiu o processo
