@@ -4173,10 +4173,12 @@ function importFile(file){
 // FORMS — solicitações de fornecedores (Microsoft Forms)
 // ══════════════════════════════════════════════════════
 
-// Colunas fixas da exportação do Forms (posição no array da linha):
-// 0 Id | 1 Hora início | 2 Hora conclusão | 3 Email | 4 Nome | 5 Nome do Solicitante |
-// 6 Email (contato da empresa) | 7 Nome da Empresa | 8 CNPJ |
-// 9/10 PC1/NF1 (J/K) | 11/12 PC2/NF2 (L/M) | 13/14 PC3/NF3 (N/O) | 15/16 PC4/NF4 (P/Q) | 17/18 PC5/NF5 (R/S)
+// Colunas da exportação do Forms são detectadas por NOME de cabeçalho (não por posição),
+// porque o formulário às vezes inclui/remove colunas ("Nome do Contato da Empresa",
+// "Escolha a opção que deseja") e isso desloca todas as posições. Detecção robusta:
+// Solicitante = header contém "solicitante"; E-mail = "email"+("contato"/"cadastrada");
+// Empresa = "nome da empresa"; CNPJ = "cnpj"; pares = colunas com "pedido de compra" (PC)
+// e "nota fiscal" (NF), pareadas na ordem em que aparecem.
 
 // Converte a "Hora de início/conclusão" do Forms (data dd/mm/aaaa + hora hh:mm 24h,
 // às vezes com prefixo de dia da semana "sex, " e às vezes como serial/Date do Excel)
@@ -4219,49 +4221,70 @@ function importFormsFile(file){
   if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode importar planilhas do Forms.',''); return; }
   const r = new FileReader();
   r.onload = e => {
+    let wb;
     try{
-      const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+      wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+    }catch(err){
+      console.error(err);
+      const enc = /encrypt|password|protec/i.test(err.message||'');
+      showToast(enc ? 'Arquivo protegido/criptografado. Salve como CSV (ou remova o rótulo de confidencialidade) e tente de novo.' : 'Não foi possível ler o arquivo. Verifique se é Excel/CSV válido.','');
+      return;
+    }
+    try{
       const ws = wb.Sheets[wb.SheetNames[0]];
       const allRows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
       if(allRows.length < 2){ showToast('Arquivo sem dados.'); return; }
 
-      let headerRowIdx = 0;
+      // Linha de cabeçalho (Id + Hora)
+      let hi = 0;
       for(let i=0;i<Math.min(5,allRows.length);i++){
-        if(norm(allRows[i][0])==='id' && norm(allRows[i][1]).includes('hora')){ headerRowIdx = i; break; }
+        if(norm(allRows[i][0])==='id' && norm(allRows[i][1]).includes('hora')){ hi=i; break; }
       }
-      const dataRows = allRows.slice(headerRowIdx+1).filter(r=>r.some(v=>v!==''&&v!==null&&v!==undefined));
+      const H = (allRows[hi]||[]).map(norm);
+      const find = pred => H.findIndex(pred);
+      const cIni    = find(h=>h.includes('hora de inic'));
+      const cFim    = find(h=>h.includes('hora de conclus'));
+      const cSolic  = find(h=>h.includes('solicitante'));
+      const cEmail  = find(h=>h.includes('email') && (h.includes('contato')||h.includes('cadastrada')||h.includes('empresa a ser')));
+      const cEmpresa= find(h=>h.includes('nome da empresa'));
+      const cCnpj   = find(h=>h.includes('cnpj'));
+      // Pares PC/NF: colunas com "pedido de compra" e "nota fiscal", na ordem
+      const pcCols=[], nfCols=[];
+      H.forEach((h,i)=>{ if(h.includes('pedido de compra')) pcCols.push(i); else if(h.includes('nota fiscal')) nfCols.push(i); });
+      const nPares = Math.max(pcCols.length, nfCols.length);
+      const gv = (row,idx,fb)=> String((idx>=0 ? row[idx] : row[fb]) ?? '').trim();
 
-      const PARES_POS = [[9,10],[11,12],[13,14],[15,16],[17,18]]; // J/K, L/M, N/O, P/Q, R/S
+      const dataRows = allRows.slice(hi+1).filter(r=>r.some(v=>v!==''&&v!==null&&v!==undefined));
       let qtd = 0;
       dataRows.forEach(row=>{
         const id = String(row[0]||'').trim();
         if(!id) return;
         const pares = [];
-        PARES_POS.forEach(([pcIdx,nfIdx])=>{
-          const pc = String(row[pcIdx]||'').trim();
-          const nf = String(row[nfIdx]||'').trim();
+        for(let k=0;k<nPares;k++){
+          const pc = String(row[pcCols[k]] ?? '').trim();
+          const nf = String(row[nfCols[k]] ?? '').trim();
           if(nf) pares.push({pc, nf});
-        });
+        }
         if(!pares.length) return;
-        const dtInicio    = parseFormsDataHora(row[1]);
-        const dtConclusao = parseFormsDataHora(row[2]);
+        const dtInicio    = parseFormsDataHora(cIni>=0?row[cIni]:row[1]);
+        const dtConclusao = parseFormsDataHora(cFim>=0?row[cFim]:row[2]);
         const s = {
           id: 'forms_' + id,
           formId: id,
           dataSolicitacao: dtConclusao.data || dtInicio.data,
           horaSolicitacao: dtConclusao.hora || dtInicio.hora,
-          solicitante: String(row[5]||'').trim(),
-          emailContato: String(row[6]||'').trim(),
-          empresa: String(row[7]||'').trim(),
-          cnpj: String(row[8]||'').trim(),
+          solicitante: gv(row, cSolic, 5),
+          emailContato: gv(row, cEmail, 6),
+          empresa: gv(row, cEmpresa, 7),
+          cnpj: gv(row, cCnpj, 8),
           pares,
           importadoEm: new Date().toLocaleString('pt-BR')
         };
         salvarFormsSolicitacaoFirebase(s);
         qtd++;
       });
-      showToast(`${qtd} solicitação(ões) importada(s) do Forms.`,'success');
-    }catch(err){ showToast('Erro ao ler o arquivo.'); console.error(err); }
+      showToast(qtd ? `${qtd} solicitação(ões) importada(s) do Forms.` : 'Nenhuma linha válida encontrada. Confira se é a exportação do Microsoft Forms (com colunas de Pedido de Compra e Nota Fiscal).', qtd?'success':'');
+    }catch(err){ showToast('Erro ao processar o arquivo.'); console.error(err); }
   };
   r.readAsBinaryString(file);
 }
