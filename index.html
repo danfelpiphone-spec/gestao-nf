@@ -614,6 +614,7 @@
         <span id="imp-log-summary" style="font-weight:400;color:var(--muted);font-size:11px"></span>
       </div>
       <div class="imp-log-body" id="imp-log-body"></div>
+      <div class="imp-log-ignoradas" id="imp-log-ignoradas"></div>
     </div>
 
     <!-- ETAPAS STRIP -->
@@ -835,7 +836,8 @@
         <button class="sap-btn" onclick="toggleFormsMenu(event)" title="Mais opções" style="padding:5px 11px">⋯</button>
         <div class="forms-menu-drop" id="forms-menu">
           <button class="forms-menu-item" onclick="closeFormsMenu();abrirResumoConclusoes()">📊 Resumo de Conclusões</button>
-          <button class="forms-menu-item danger" onclick="closeFormsMenu();limparFormsBase()">🗑 Limpar Base</button>
+          <button class="forms-menu-item danger" onclick="closeFormsMenu();limparFormsBase()">🗑 Limpar Arquivos</button>
+          <button class="forms-menu-item danger" onclick="closeFormsMenu();limparHistoricoForms()">🗑 Limpar Histórico</button>
         </div>
       </div>
     </div>
@@ -944,7 +946,8 @@
       <input type="file" id="com-import-input" accept=".xlsx,.xls,.csv" style="display:none">
       <button class="sap-btn primary" onclick="enviarTodosComunicacao()">📤 Enviar Todos</button>
       <button class="sap-btn primary" onclick="exportarRespostasComunicacao()" style="color:#fff">⬇ Exportar Respostas (SAP)</button>
-      <button class="sap-btn" onclick="limparBaseComunicacao()" style="color:var(--red);border-color:var(--red)">🗑 Limpar Base</button>
+      <button class="sap-btn" onclick="limparArquivosComunicacao()" style="color:var(--red);border-color:var(--red)">🗑 Limpar Arquivos</button>
+      <button class="sap-btn" onclick="limparRegistrosComunicacao()" style="color:var(--red);border-color:var(--red)">🗑 Limpar Registros</button>
       <div class="tbar-sp"></div>
       <span style="font-size:11px;color:var(--muted)" id="com-cnt">0 fornecedores</span>
     </div>
@@ -1962,6 +1965,14 @@ function iniciarApp(user){
     verificacaoLog = data ? Object.values(data).sort((a,b)=>(b.fimTs||0)-(a.fimTs||0)) : [];
   });
 
+  // Forms — histórico PERMANENTE de ações (pagamento/previsão/reenvio/aviso), independente
+  // da solicitação importada — sobrevive a "Limpar Arquivos" (só some em "Limpar Histórico")
+  db.ref('formsHistoricoLog').on('value', snap => {
+    const data = snap.val();
+    formsHistoricoLog = data ? Object.values(data).sort((a,b)=>(b.ts||0)-(a.ts||0)) : [];
+    if(document.getElementById('forms-concl-ov')?.classList.contains('open')) renderResumoConclusoes();
+  });
+
   // Comunicação — fornecedores e respostas
   db.ref('comunicacaoFornecedores').on('value', snap => {
     const data = snap.val();
@@ -2131,13 +2142,48 @@ function salvarVerificacaoLogFirebase(entry){
   db.ref('verificacaoLog/' + entry.id).set(entry);
 }
 
+// Histórico PERMANENTE de ações do Forms (pagamento/previsão/reenvio/aviso) — independente
+// da solicitação importada, para sobreviver a "Limpar Arquivos" e alimentar o Resumo de Conclusões.
+let formsHistoricoLog = [];
+function registrarHistoricoForms(sol, par, tipo, emOverride, horaOverride, porOverride){
+  const entry = {
+    id: 'fh_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), ts: Date.now(),
+    empresa: sol.empresa||'', solicitante: sol.solicitante||'', emailContato: sol.emailContato||'',
+    nf: par.nf||'', pc: par.pc||'', dataSolicitacao: sol.dataSolicitacao||'',
+    tipo,
+    concluidoEm: emOverride!==undefined ? emOverride : (par.concluidoEm||''),
+    concluidoHora: horaOverride!==undefined ? horaOverride : (par.concluidoHora||''),
+    concluidoPor: porOverride!==undefined ? porOverride : (par.concluidoPor||'')
+  };
+  formsHistoricoLog.unshift(entry);
+  db.ref('formsHistoricoLog/' + entry.id).set(entry);
+}
+
+// "Limpar Arquivos" — remove SÓ as solicitações importadas (pedidos do fornecedor).
+// O histórico de ações (formsHistoricoLog, verificacaoLog) NÃO é afetado — fica preservado
+// pra sempre (inclusive no Resumo de Conclusões), até que "Limpar Histórico" seja usado.
 function limparFormsBase(){
   if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar a base do Forms.',''); return; }
-  showToast('Limpando base do Forms...','');
+  if(!confirm('Limpar os ARQUIVOS importados do Forms (pedidos dos fornecedores)?\n\nO histórico de ações (pagamentos, avisos, reenvios, verificações) NÃO é apagado — continua disponível no Resumo de Conclusões.')) return;
+  showToast('Limpando arquivos do Forms...','');
   db.ref('formsSolicitacoes').remove().then(()=>{
     formsSolicitacoes = [];
     renderForms();
-    showToast('Base do Forms limpa.','success');
+    showToast('Arquivos do Forms limpos. Histórico de ações preservado.','success');
+  }).catch(e=>showToast('Erro ao limpar: '+e.message,''));
+}
+
+// "Limpar Histórico" — apaga o histórico de ações e verificações. Ação rara e mais destrutiva
+// que "Limpar Arquivos" — perde os dados usados no Resumo de Conclusões e nas Estatísticas.
+function limparHistoricoForms(){
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar o histórico.',''); return; }
+  if(!confirm('ATENÇÃO: isso apaga o HISTÓRICO de ações do Forms (pagamentos, previsões, reenvios, avisos e sessões de verificação) — usado no Resumo de Conclusões e nas medições de performance.\n\nOs arquivos/pedidos importados NÃO são afetados.\n\nEsta ação não pode ser desfeita. Continuar?')) return;
+  showToast('Limpando histórico do Forms...','');
+  Promise.all([db.ref('formsHistoricoLog').remove(), db.ref('verificacaoLog').remove()]).then(()=>{
+    formsHistoricoLog = [];
+    verificacaoLog = [];
+    if(document.getElementById('forms-concl-ov')?.classList.contains('open')) renderResumoConclusoes();
+    showToast('Histórico do Forms limpo.','success');
   }).catch(e=>showToast('Erro ao limpar: '+e.message,''));
 }
 
@@ -3995,6 +4041,17 @@ function limparDados(){
   showToast('Dados limpos. Importe o arquivo Excel para começar.','');
 }
 
+let _ultimaImportIgnoradas = []; // detalhe das linhas descartadas no último import (auditoria)
+function exportarIgnoradasImport(){
+  if(!_ultimaImportIgnoradas.length){ showToast('Nenhuma linha ignorada para exportar.',''); return; }
+  const headers = ['Nº NF','Fornecedor','Pagamento','Status','Elegibilidade'];
+  const rows = _ultimaImportIgnoradas.map(x=>[x.num, x.forn, x.pagamento, x.status, x.elegibilidade]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ignoradas');
+  XLSX.writeFile(wb, 'linhas_ignoradas_import.xlsx');
+}
+
 function importFile(file){
   // Allow import in local/preview mode (no Firebase) OR when owner
   if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode importar arquivos.',''); return; }
@@ -4069,6 +4126,7 @@ function importFile(file){
       const modoTeste = document.getElementById('modo-teste') && document.getElementById('modo-teste').checked;
 
       let qtdIgnorada=0;
+      const ignoradasDetalhe=[]; // linhas descartadas pelo critério Pagamento/Status/Elegibilidade (auditoria)
       dataRows.forEach((r,i)=>{
         // Skip empty rows
         if(!r || r.every(v=>v===''||v===null||v===undefined)){ qtdIgnorada++; return; }
@@ -4083,7 +4141,17 @@ function importFile(file){
           const fAutorizada = F.startsWith('autorizad');
           const isPago     = E === 'pago'     && fAutorizada && I === 'elegivel';
           const isPendente = E === 'nao pago' && fAutorizada && I === 'elegivel';
-          if(!isPago && !isPendente){ qtdIgnorada++; return; }
+          if(!isPago && !isPendente){
+            qtdIgnorada++;
+            ignoradasDetalhe.push({
+              num: String(r[_colIdx['num']]??'').trim(),
+              forn: String(r[_colIdx['forn']]??'').trim(),
+              pagamento: String(r[POS_E]??'').trim(),
+              status: String(r[POS_F]??'').trim(),
+              elegibilidade: String(r[POS_I]??'').trim()
+            });
+            return;
+          }
         }
 
         const parsed  = parseRow(r,i);
@@ -4156,6 +4224,27 @@ function importFile(file){
             ${l.changeDesc?`<br><span class="log-changed">↳ ${l.changeDesc}</span>`:''}
           </span>
         </div>`).join('');
+
+      // Resumo das linhas ignoradas por critério (Pagamento/Status/Elegibilidade) — auditoria
+      _ultimaImportIgnoradas = ignoradasDetalhe;
+      const ignEl = document.getElementById('imp-log-ignoradas');
+      if(ignoradasDetalhe.length){
+        const grupos = {};
+        ignoradasDetalhe.forEach(x=>{
+          const chave = `${x.pagamento||'(vazio)'} · ${x.status||'(vazio)'} · ${x.elegibilidade||'(vazio)'}`;
+          grupos[chave] = (grupos[chave]||0) + 1;
+        });
+        const linhas = Object.entries(grupos).sort((a,b)=>b[1]-a[1]);
+        ignEl.innerHTML = `
+          <div class="imp-log-hdr" style="margin-top:10px">⚠ Motivos das ${ignoradasDetalhe.length} linha(s) ignorada(s) (Pagamento · Status · Elegibilidade)
+            <button class="sap-btn" style="padding:2px 9px;font-size:11px;margin-left:8px" onclick="exportarIgnoradasImport()">⬇ Exportar todas</button>
+          </div>
+          <div class="imp-log-body">
+            ${linhas.map(([combo,qtd])=>`<div class="log-row"><span class="log-nf">${qtd}×</span><span class="log-desc">${combo}</span></div>`).join('')}
+          </div>`;
+      } else {
+        ignEl.innerHTML = '';
+      }
 
       const importNotif = {tipo:'success',ico:'📊',title:'Importação concluída',
         desc:`${qtdNova} nova(s) · ${qtdAtual} atualizada(s) · ${qtdSemAlter} sem alteração · ${qtdIgnorada} ignorada(s) — ${file.name}`,
@@ -4746,7 +4835,7 @@ function acaoInformarPagamento(){
   const corpo = ['Prezados,','','Em atendimento à solicitação enviada por vocês, seguem as notas fiscais já pagas:','','--------------------------------------',linhasTxt,'--------------------------------------','','Atenciosamente,','Contas a Pagar - Sistema GestãoNF'].join('\n');
 
   const solsAfetados = new Set();
-  itens.forEach(({sol,par})=>{ marcarParConcluido(par,'pago'); solsAfetados.add(sol); });
+  itens.forEach(({sol,par})=>{ marcarParConcluido(sol,par,'pago'); solsAfetados.add(sol); });
   solsAfetados.forEach(sol=>salvarFormsSolicitacaoFirebase(sol));
   renderForms();
   abrirPainelFornecedor(empresa);
@@ -4769,7 +4858,7 @@ function acaoSalvarPrevisao(){
   const corpo = ['Prezados,','','Em atendimento à solicitação enviada por vocês, seguem as previsões de pagamento das notas fiscais:','','--------------------------------------',linhasTxt,'--------------------------------------','','Atenciosamente,','Contas a Pagar - Sistema GestãoNF'].join('\n');
 
   const solsAfetados = new Set();
-  itens.forEach(({sol,par})=>{ marcarParConcluido(par,'previsao'); solsAfetados.add(sol); });
+  itens.forEach(({sol,par})=>{ marcarParConcluido(sol,par,'previsao'); solsAfetados.add(sol); });
   solsAfetados.forEach(sol=>salvarFormsSolicitacaoFirebase(sol));
   renderForms();
   abrirPainelFornecedor(empresa);
@@ -4808,7 +4897,7 @@ function acaoSolicitarReenvio(){
   ].join('\n');
 
   const solsAfetados = new Set();
-  itens.forEach(({sol,par})=>{ marcarParConcluido(par,'reenvio'); solsAfetados.add(sol); });
+  itens.forEach(({sol,par})=>{ marcarParConcluido(sol,par,'reenvio'); solsAfetados.add(sol); });
   solsAfetados.forEach(sol=>salvarFormsSolicitacaoFirebase(sol));
   renderForms();
   abrirPainelFornecedor(empresa);
@@ -4839,7 +4928,10 @@ function acaoAvisoAndamento(){
   const hora = String(agora.getHours()).padStart(2,'0')+':'+String(agora.getMinutes()).padStart(2,'0');
   const por  = nomeUsuarioAtual();
   const solsAfetados = new Set();
-  itens.forEach(({sol,par})=>{ par.avisoEm=dia; par.avisoHora=hora; par.avisoPor=por; solsAfetados.add(sol); });
+  itens.forEach(({sol,par})=>{
+    par.avisoEm=dia; par.avisoHora=hora; par.avisoPor=por; solsAfetados.add(sol);
+    registrarHistoricoForms(sol, par, 'aviso', dia, hora, por);
+  });
   solsAfetados.forEach(sol=>salvarFormsSolicitacaoFirebase(sol));
   renderForms();
   abrirPainelFornecedor(empresa);
@@ -4853,18 +4945,20 @@ function nomeUsuarioAtual(){
   return currentUser ? currentUser.nome : (_fbUser ? _fbUser.email : 'Sistema');
 }
 
-function marcarParConcluido(par, tipo){
+function marcarParConcluido(sol, par, tipo){
   const agora = new Date();
   par.concluidoEm = agora.getFullYear()+'-'+String(agora.getMonth()+1).padStart(2,'0')+'-'+String(agora.getDate()).padStart(2,'0');
   par.concluidoHora = String(agora.getHours()).padStart(2,'0')+':'+String(agora.getMinutes()).padStart(2,'0');
   par.concluidoPor = nomeUsuarioAtual();
-  par.concluidoTipo = tipo; // 'pago' | 'reenvio'
+  par.concluidoTipo = tipo; // 'pago' | 'reenvio' | 'previsao'
+  registrarHistoricoForms(sol, par, tipo);
 }
 
-// ── RESUMO DE CONCLUSÕES — acompanhamento de SLA/metas ──
+// ── RESUMO DE CONCLUSÕES — acompanhamento de SLA/metas (lê do histórico PERMANENTE,
+// formsHistoricoLog, não das solicitações ao vivo — sobrevive a "Limpar Arquivos") ──
 function abrirResumoConclusoes(){
   const usuarios = new Set();
-  formsSolicitacoes.forEach(sol=>(sol.pares||[]).forEach(par=>{ if(par.concluidoPor) usuarios.add(par.concluidoPor); }));
+  formsHistoricoLog.forEach(h=>{ if(h.concluidoPor) usuarios.add(h.concluidoPor); });
   const selUser = document.getElementById('concl-f-usuario');
   const cur = selUser.value;
   selUser.innerHTML = '<option value="">Usuário</option>' + [...usuarios].sort().map(u=>`<option${u===cur?' selected':''}>${u}</option>`).join('');
@@ -4902,10 +4996,10 @@ function renderPerformanceUsuarios(itens){
   if(!el) return;
 
   const porUser = {};
-  itens.forEach(({sol,par})=>{
-    const d = diasEntre(sol.dataSolicitacao, par.concluidoEm);
+  itens.forEach(h=>{
+    const d = diasEntre(h.dataSolicitacao, h.concluidoEm);
     if(d===null) return;
-    const u = par.concluidoPor || '—';
+    const u = h.concluidoPor || '—';
     if(!porUser[u]) porUser[u] = {nome:u, ideal:0, limite:0, fora:0, total:0, somaDias:0};
     const b = porUser[u];
     if(d<=2) b.ideal++; else if(d===3) b.limite++; else b.fora++;
@@ -4939,25 +5033,20 @@ function renderResumoConclusoes(){
   const userF = document.getElementById('concl-f-usuario').value;
   const tipoF = document.getElementById('concl-f-tipo').value;
 
-  let itens = [];
-  formsSolicitacoes.forEach(sol=>{
-    (sol.pares||[]).forEach(par=>{
-      if(!par.concluidoEm) return;
-      itens.push({sol, par});
-    });
-  });
+  // Lê do histórico PERMANENTE (formsHistoricoLog) — só tipos de conclusão (não "aviso")
+  let itens = formsHistoricoLog.filter(h=>h.tipo==='pago'||h.tipo==='reenvio'||h.tipo==='previsao');
 
-  itens = itens.filter(({par})=>{
-    if(dtDe  && par.concluidoEm < dtDe)  return false;
-    if(dtAte && par.concluidoEm > dtAte) return false;
-    if(userF && par.concluidoPor  !== userF) return false;
-    if(tipoF && par.concluidoTipo !== tipoF) return false;
+  itens = itens.filter(h=>{
+    if(dtDe  && h.concluidoEm < dtDe)  return false;
+    if(dtAte && h.concluidoEm > dtAte) return false;
+    if(userF && h.concluidoPor  !== userF) return false;
+    if(tipoF && h.tipo !== tipoF) return false;
     return true;
   });
 
-  itens.sort((a,b)=> (b.par.concluidoEm+(b.par.concluidoHora||'')).localeCompare(a.par.concluidoEm+(a.par.concluidoHora||'')));
+  itens.sort((a,b)=> (b.concluidoEm+(b.concluidoHora||'')).localeCompare(a.concluidoEm+(a.concluidoHora||'')));
 
-  const dias  = itens.map(({sol,par})=>diasEntre(sol.dataSolicitacao, par.concluidoEm)).filter(d=>d!==null);
+  const dias  = itens.map(h=>diasEntre(h.dataSolicitacao, h.concluidoEm)).filter(d=>d!==null);
   const media = dias.length ? (dias.reduce((s,d)=>s+d,0)/dias.length) : 0;
   const totIdeal = dias.filter(d=>d<=2).length;
 
@@ -4972,17 +5061,17 @@ function renderResumoConclusoes(){
     tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Nenhuma conclusão encontrada para o filtro selecionado.</td></tr>`;
     return;
   }
-  tb.innerHTML = itens.map(({sol,par})=>{
-    const d = diasEntre(sol.dataSolicitacao, par.concluidoEm);
-    const tipoLbl = par.concluidoTipo==='pago' ? 'Pagamento Informado' : par.concluidoTipo==='reenvio' ? 'Reenvio Solicitado' : par.concluidoTipo==='previsao' ? 'Previsão de Pagamento Informada' : '—';
+  tb.innerHTML = itens.map(h=>{
+    const d = diasEntre(h.dataSolicitacao, h.concluidoEm);
+    const tipoLbl = h.tipo==='pago' ? 'Pagamento Informado' : h.tipo==='reenvio' ? 'Reenvio Solicitado' : h.tipo==='previsao' ? 'Previsão de Pagamento Informada' : '—';
     return `<tr>
-      <td>${par.nf}</td>
-      <td class="mono">${par.pc||'—'}</td>
+      <td>${h.nf}</td>
+      <td class="mono">${h.pc||'—'}</td>
       <td>${tipoLbl}</td>
-      <td>${fdate(sol.dataSolicitacao)}</td>
-      <td>${fdate(par.concluidoEm)} ${par.concluidoHora||''}</td>
+      <td>${fdate(h.dataSolicitacao)}</td>
+      <td>${fdate(h.concluidoEm)} ${h.concluidoHora||''}</td>
       <td style="text-align:center">${d!==null?d:'—'}</td>
-      <td>${par.concluidoPor||'—'}</td>
+      <td>${h.concluidoPor||'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -6000,13 +6089,28 @@ function exportarRespostasComunicacao(){
   showToast(`${respondidos.length} resposta(s) exportada(s).`,'success');
 }
 
-function limparBaseComunicacao(){
+// "Limpar Arquivos" — remove só a lista de fornecedores importados (roteiro do envio:
+// nome/CNPJ/e-mail/token/status de envio). As RESPOSTAS que os fornecedores já enviaram
+// (dados bancários, contatos, confirmações) NÃO são afetadas — ficam preservadas por token.
+function limparArquivosComunicacao(){
   if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar.',''); return; }
-  if(!confirm('Limpar TODOS os fornecedores e respostas desta campanha? Esta ação não pode ser desfeita.')) return;
-  Promise.all([db.ref('comunicacaoFornecedores').remove(), db.ref('comunicacaoRespostas').remove()]).then(()=>{
-    comunicacaoFornecedores=[]; comunicacaoRespostas={};
+  if(!confirm('Limpar os ARQUIVOS de fornecedores importados desta campanha (nome/CNPJ/e-mail/status de envio)?\n\nAs respostas já enviadas pelos fornecedores (dados bancários, contatos, confirmações) NÃO são apagadas.')) return;
+  db.ref('comunicacaoFornecedores').remove().then(()=>{
+    comunicacaoFornecedores=[];
     renderComunicacao();
-    showToast('Base da Comunicação limpa.','success');
+    showToast('Arquivos de fornecedores limpos. Respostas preservadas.','success');
+  });
+}
+
+// "Limpar Registros" — apaga as RESPOSTAS que os fornecedores enviaram (dados bancários,
+// contatos, confirmações). Ação rara e mais destrutiva — perde dado de negócio real.
+function limparRegistrosComunicacao(){
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar.',''); return; }
+  if(!confirm('ATENÇÃO: isso apaga as RESPOSTAS enviadas pelos fornecedores (dados bancários, contatos, confirmações de forma de pagamento) desta campanha.\n\nOs arquivos/roteiro de envio NÃO são afetados.\n\nEsta ação não pode ser desfeita. Continuar?')) return;
+  db.ref('comunicacaoRespostas').remove().then(()=>{
+    comunicacaoRespostas={};
+    renderComunicacao();
+    showToast('Registros (respostas) da Comunicação limpos.','success');
   });
 }
 
