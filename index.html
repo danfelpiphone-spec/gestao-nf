@@ -871,6 +871,7 @@
       <div class="tbar-sep"></div>
       <button class="sap-btn" onclick="limparFiltrosTracking()" style="color:var(--yellow);border-color:var(--yellow)">✕ Limpar</button>
       <button class="sap-btn" onclick="abrirEstatisticasTracking()">📊 Estatísticas</button>
+      <button class="sap-btn" onclick="limparHistoricoTracking()" style="color:var(--red);border-color:var(--red)">🗑 Limpar Histórico</button>
       <div class="tbar-sp"></div>
       <span style="font-size:11px;color:var(--muted)" id="resp-cnt">0 registros</span>
     </div>
@@ -1973,6 +1974,14 @@ function iniciarApp(user){
     if(document.getElementById('forms-concl-ov')?.classList.contains('open')) renderResumoConclusoes();
   });
 
+  // Tracking — histórico PERMANENTE de verificações concluídas, independente das NFs
+  // importadas — sobrevive a "Limpar Firebase"/"Limpar Dados Locais" (só some em "Limpar Histórico")
+  db.ref('trackingHistoricoLog').on('value', snap => {
+    const data = snap.val();
+    trackingHistoricoLog = data ? Object.values(data).sort((a,b)=>(b.trackConcluidoTs||0)-(a.trackConcluidoTs||0)) : [];
+    if(document.getElementById('track-stats-ov')?.classList.contains('open')) renderEstatisticasTracking();
+  });
+
   // Comunicação — fornecedores e respostas
   db.ref('comunicacaoFornecedores').on('value', snap => {
     const data = snap.val();
@@ -2184,6 +2193,33 @@ function limparHistoricoForms(){
     verificacaoLog = [];
     if(document.getElementById('forms-concl-ov')?.classList.contains('open')) renderResumoConclusoes();
     showToast('Histórico do Forms limpo.','success');
+  }).catch(e=>showToast('Erro ao limpar: '+e.message,''));
+}
+
+// Histórico PERMANENTE de verificações concluídas do Tracking — independente das NFs
+// importadas, para sobreviver a "Limpar Firebase"/"Limpar Dados Locais" e alimentar Estatísticas.
+let trackingHistoricoLog = [];
+function registrarHistoricoTracking(n){
+  const entry = {
+    id: 'th_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    num: n.num||'', pc: n.pc||'', forn: n.forn||'', emissao: n.emissao||'',
+    trackInicioTs: n.trackInicioTs||null, trackInicioFmt: n.trackInicioFmt||'',
+    trackConcluidoTs: n.trackConcluidoTs||null, trackConcluidoEm: n.trackConcluidoEm||'',
+    trackConcluidoHora: n.trackConcluidoHora||'', trackConcluidoPor: n.trackConcluidoPor||''
+  };
+  trackingHistoricoLog.unshift(entry);
+  db.ref('trackingHistoricoLog/' + entry.id).set(entry);
+}
+// "Limpar Histórico" (Tracking) — apaga só o histórico de verificações concluídas
+// (usado nas Estatísticas). As NFs importadas (Dashboard) NÃO são afetadas.
+function limparHistoricoTracking(){
+  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode limpar o histórico.',''); return; }
+  if(!confirm('ATENÇÃO: isso apaga o HISTÓRICO de verificações concluídas do Tracking — usado nas Estatísticas (tempo médio, % no prazo, desempenho por usuário).\n\nAs NFs importadas NÃO são afetadas.\n\nEsta ação não pode ser desfeita. Continuar?')) return;
+  showToast('Limpando histórico do Tracking...','');
+  db.ref('trackingHistoricoLog').remove().then(()=>{
+    trackingHistoricoLog = [];
+    if(document.getElementById('track-stats-ov')?.classList.contains('open')) renderEstatisticasTracking();
+    showToast('Histórico do Tracking limpo.','success');
   }).catch(e=>showToast('Erro ao limpar: '+e.message,''));
 }
 
@@ -5345,6 +5381,7 @@ function trackSetCheck(id, key, val){
     n.trackConcluidoEm  = a.getFullYear()+'-'+_pad2(a.getMonth()+1)+'-'+_pad2(a.getDate());
     n.trackConcluidoHora= _pad2(a.getHours())+':'+_pad2(a.getMinutes());
     n.trackConcluidoPor = n.trackResp || nomeUsuarioAtual();
+    registrarHistoricoTracking(n);
     showToast('Verificação concluída!','success');
   } else if(!allSim && n.trackConcluidoTs){
     n.trackConcluidoTs=null; n.trackConcluidoEm=null; n.trackConcluidoHora=null; n.trackConcluidoPor=null;
@@ -5367,7 +5404,8 @@ function closeEstatisticasTracking(e){
 function renderEstatisticasTracking(){
   const de  = document.getElementById('tkst-de').value;
   const ate = document.getElementById('tkst-ate').value;
-  let itens = nfs.filter(n=>n.trackConcluidoTs && n.trackConcluidoEm);
+  // Lê do histórico PERMANENTE (trackingHistoricoLog) — sobrevive a "Limpar Firebase"/"Limpar Dados Locais"
+  let itens = trackingHistoricoLog.filter(n=>n.trackConcluidoTs && n.trackConcluidoEm);
   itens = itens.filter(n=>{
     if(de  && n.trackConcluidoEm < de)  return false;
     if(ate && n.trackConcluidoEm > ate) return false;
