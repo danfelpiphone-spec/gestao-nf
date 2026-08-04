@@ -2053,13 +2053,22 @@ function iniciarApp(user){
 
   // Observações do Tracking (por NF) e do Forms (por fornecedor) — persistem à parte,
   // sobrevivem a qualquer "Limpar Arquivos"/"Limpar Dados Locais"
+  // O Firebase guarda cada observação como objeto (chaveado por id, ex.: trackingObservacoes/CHAVE/to_123),
+  // não como array — por isso é preciso converter cada sub-coleção de volta pra array ao sincronizar
+  // (sem isso, .slice()/.sort() em renderObsTracking/renderObsForms lançava exceção e travava a reabertura do card).
   db.ref('trackingObservacoes').on('value', snap => {
-    trackingObservacoes = snap.val() || {};
+    const data = snap.val() || {};
+    trackingObservacoes = {};
+    Object.keys(data).forEach(k => { trackingObservacoes[k] = Object.values(data[k]||{}); });
     if(_tkNfId!=null && document.getElementById('track-ov')?.classList.contains('open')) renderObsTracking(_tkNfId);
+    if(document.getElementById('view-responsaveis')?.classList.contains('active')) renderTracking();
   });
   db.ref('formsObservacoes').on('value', snap => {
-    formsObservacoes = snap.val() || {};
+    const data = snap.val() || {};
+    formsObservacoes = {};
+    Object.keys(data).forEach(k => { formsObservacoes[k] = Object.values(data[k]||{}); });
     if(_ffEmpresaAtual && document.getElementById('forms-forn-ov')?.classList.contains('open')) renderObsForms(_ffEmpresaAtual);
+    if(document.getElementById('view-forms')?.classList.contains('active')) renderForms();
   });
 
   // Comunicação — fornecedores e respostas
@@ -2283,10 +2292,12 @@ function salvarObsForms(empresa){
   renderObsForms(empresa);
   showToast('Observação salva.','success');
 }
+// Blindagem: aceita array OU objeto chaveado (formato cru do Firebase), nunca deixa quebrar o render
+function _asArray(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
 function renderObsForms(empresa){
   const el = document.getElementById('ff-obs');
   if(!el) return;
-  const lista = (formsObservacoes[_obsKey(empresa)]||[]).slice().sort((a,b)=>(b.id||0)>(a.id||0)?1:-1);
+  const lista = _asArray(formsObservacoes[_obsKey(empresa)]).slice().sort((a,b)=>(b.id||0)>(a.id||0)?1:-1);
   el.innerHTML = `<div class="obs-box">
     <label>Observações</label>
     <textarea class="sap-input obs-ta" id="ff-obs-ta" placeholder="Anote aqui algo para lembrar ou informar o status deste fornecedor..."></textarea>
@@ -2323,7 +2334,7 @@ function renderObsTracking(id){
   const el = document.getElementById('tk-obs');
   const n = nfs.find(x=>String(x.id)===String(id));
   if(!el || !n) return;
-  const lista = (trackingObservacoes[_trackObsKey(n)]||[]).slice().sort((a,b)=>(b.id||0)>(a.id||0)?1:-1);
+  const lista = _asArray(trackingObservacoes[_trackObsKey(n)]).slice().sort((a,b)=>(b.id||0)>(a.id||0)?1:-1);
   el.innerHTML = `<div class="obs-box">
     <label>Observações</label>
     <textarea class="sap-input obs-ta" id="tk-obs-ta" placeholder="Anote aqui algo para lembrar ou informar o status desta NF..."></textarea>
@@ -4789,10 +4800,13 @@ function renderForms(){
     const verifBadge =
       (ativoV ? `<div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:4px">🔍 Verificando agora: ${ativoV.por}</div>` : '') +
       (verif  ? `<div style="font-size:11px;color:var(--sap-blue);font-weight:700;margin-bottom:7px">👤 Responsável: ${verif.por}</div>` : '');
+    const qtdObs = _asArray(formsObservacoes[_obsKey(g.empresa)]).length;
+    const obsBadge = qtdObs ? `<div style="font-size:11px;color:var(--yellow);font-weight:700;margin-bottom:4px">📝 ${qtdObs} observação${qtdObs!==1?'ões':''}</div>` : '';
 
     return `<div class="forn-card ${classeBorda}" data-empresa="${(g.empresa||'').replace(/"/g,'&quot;')}">
       <div class="forn-card-nome">${g.empresa}<span class="forn-card-qtd">${g.pares.length} NF${g.pares.length!==1?'s':''}</span></div>
       <div class="forn-selos">${selos}</div>
+      ${obsBadge}
       ${verifBadge}
       <div class="forn-card-foot">
         <span class="forn-card-total">${totalVal>0?fval(totalVal):'—'}</span>
@@ -5027,7 +5041,7 @@ function abrirHistoricoFornecedor(empresa){
   formsHistoricoLog.filter(h=>h.empresa===empresa).forEach(h=>{
     eventos.push({
       ts: h.ts||0, icon: FH_TIPO_ICO[h.tipo]||'•', label: FH_TIPO_LBL[h.tipo]||'Ação registrada',
-      detail: `NF ${h.nf||'—'}${h.pc?' · PC '+h.pc:''}`,
+      detail: `NF ${h.nf||'—'}${h.pc?' · PC '+h.pc:''}${h.emailContato?' · Para: '+h.emailContato:''}`,
       meta: `${fdate(h.concluidoEm)} ${h.concluidoHora||''} · ${h.concluidoPor||'—'}`.trim()
     });
   });
@@ -5038,7 +5052,7 @@ function abrirHistoricoFornecedor(empresa){
       meta: `${v.fimFmt||''} · ${v.por||'—'}`
     });
   });
-  (formsObservacoes[_obsKey(empresa)]||[]).forEach(o=>{
+  _asArray(formsObservacoes[_obsKey(empresa)]).forEach(o=>{
     eventos.push({
       ts: parseInt(String(o.id||'').split('_')[1])||0, icon:'📝', label:'Observação registrada',
       detail: o.texto,
@@ -5505,8 +5519,10 @@ function renderTracking(){
       : (trackPodeEditar(n)
           ? `<button class="sap-btn primary" onclick="openTrackPanel(${n.id})">✏ Verificar</button>`
           : `<button class="sap-btn" onclick="openTrackPanel(${n.id})">${n.trackResp?'🔒 Abrir':'Assumir'}</button>`);
+    const qtdObsN = _asArray(trackingObservacoes[_trackObsKey(n)]).length;
+    const obsIco = qtdObsN ? `<span title="${qtdObsN} observação${qtdObsN!==1?'ões':''} registrada${qtdObsN!==1?'s':''}" style="margin-left:4px">📝</span>` : '';
     return `<tr>
-      <td><span class="link-cell" data-open="${n.id}">${n.num}</span></td>
+      <td><span class="link-cell" data-open="${n.id}">${n.num}</span>${obsIco}</td>
       <td>${n.forn}</td>
       <td class="mono">${n.pc||'—'}</td>
       <td>${fval(n.val)}</td>
@@ -5864,6 +5880,20 @@ function _corpoReminder(env, etapa){
   ].join('\n');
 }
 
+// Último envio registrado para essa NF+etapa, cruzando com o reminderLog (fonte PERMANENTE,
+// nunca é limpa) — assim a detecção de "já enviado" continua funcionando mesmo que o carimbo
+// local (n.remEnviado, que vive na própria NF) tenha se perdido numa "Limpar Firebase"/reimport.
+function _ultimoEnvioReminderNF(num, etapa){
+  let melhor = null;
+  reminderLog.forEach(l=>{
+    if(l.etapa===etapa && (l.nfs||[]).includes(num)){
+      const carimbo = (l.data||'')+' '+(l.hora||'');
+      if(!melhor || carimbo>melhor) melhor = carimbo;
+    }
+  });
+  return melhor;
+}
+
 let _remEnvelopes = [];
 let _remEtapaAtual = '';
 function prepararEnvioReminder(){
@@ -5872,12 +5902,22 @@ function prepararEnvioReminder(){
   let lista = selecionarNFsReminder();
   if(!lista.length){ showToast('Nenhuma NF elegível para esta etapa/filtros.',''); return; }
 
-  const jaAlertadas = lista.filter(n=>n.remEnviado && n.remEnviado[etapa]).length;
+  const comCarimbo = lista.map(n=>{
+    const local = n.remEnviado && n.remEnviado[etapa];
+    const doLog = _ultimoEnvioReminderNF(n.num, etapa);
+    const ultimo = [local, doLog].filter(Boolean).sort().pop() || null;
+    return {n, ultimo};
+  });
+  const jaAlertadas = comCarimbo.filter(x=>x.ultimo);
   let somenteNovas = true;
-  if(jaAlertadas>0){
-    somenteNovas = !confirm(`${jaAlertadas} NF(s) já foram alertadas na etapa ${etapa}.\n\nOK = reenviar TODAS as ${lista.length}.\nCancelar = enviar apenas as ${lista.length-jaAlertadas} novas.`);
+  if(jaAlertadas.length>0){
+    const maisRecente = jaAlertadas.map(x=>x.ultimo).sort().pop();
+    somenteNovas = !confirm(`${jaAlertadas.length} de ${lista.length} NF(s) já foram alertadas na etapa ${etapa}.\nÚltimo envio registrado: ${maisRecente}.\n\nOK = reenviar TODAS as ${lista.length} (mescla novas + já enviadas).\nCancelar = enviar só as ${lista.length-jaAlertadas.length} NOVAS (ainda não alertadas).`);
   }
-  if(somenteNovas) lista = lista.filter(n=>!(n.remEnviado && n.remEnviado[etapa]));
+  if(somenteNovas){
+    const jaSet = new Set(jaAlertadas.map(x=>x.n));
+    lista = lista.filter(n=>!jaSet.has(n));
+  }
   if(!lista.length){ showToast('Nenhuma NF nova para alertar nesta etapa.',''); return; }
 
   const depto = REMINDER_ETAPA_DEPTO[etapa];
