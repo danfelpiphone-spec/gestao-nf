@@ -1795,7 +1795,7 @@ function exportarNFs(){
   XLSX.utils.book_append_sheet(wb, ws, 'Notas Fiscais');
 
   const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
-  XLSX.writeFile(wb, 'GestaoNF_Export_' + hoje + '.xlsx');
+  XLSX.writeFile(wb, 'GestaoNF_Export_' + hoje + '.xlsx', {bookType:'xlsx', bookSST:true});
   showToast(list.length + ' NFs exportadas com sucesso!', 'success');
 }
 
@@ -4260,7 +4260,7 @@ function exportarIgnoradasImport(){
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Ignoradas');
-  XLSX.writeFile(wb, 'linhas_ignoradas_import.xlsx');
+  XLSX.writeFile(wb, 'linhas_ignoradas_import.xlsx', {bookType:'xlsx', bookSST:true});
 }
 
 function importFile(file){
@@ -6172,7 +6172,7 @@ function exportarRelatorioEnvios(){
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Envios');
-  XLSX.writeFile(wb, 'relatorio_envios_reminder.xlsx');
+  XLSX.writeFile(wb, 'relatorio_envios_reminder.xlsx', {bookType:'xlsx', bookSST:true});
   showToast('Relatório exportado.','success');
 }
 
@@ -6357,7 +6357,7 @@ function enviarTodosComunicacao(){
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Disparo');
-  XLSX.writeFile(wb, 'disparo_comunicacao_fornecedores.xlsx');
+  XLSX.writeFile(wb, 'disparo_comunicacao_fornecedores.xlsx', {bookType:'xlsx', bookSST:true});
 
   list.forEach(_marcarEnviadoCom);
   renderComunicacao();
@@ -6403,7 +6403,7 @@ function exportarRespostasComunicacao(){
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Respostas');
-  XLSX.writeFile(wb, 'respostas_fornecedores.xlsx');
+  XLSX.writeFile(wb, 'respostas_fornecedores.xlsx', {bookType:'xlsx', bookSST:true});
   showToast(`${respondidos.length} resposta(s) exportada(s).`,'success');
 }
 
