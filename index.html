@@ -129,7 +129,8 @@
   .modal-ov.open { display: flex; }
   .modal { background: var(--white); border: 1px solid var(--border-dark); border-radius: var(--r); width: 720px; max-width: 96vw; max-height: 92vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.28); animation: mfade .15s ease; }
   @keyframes mfade { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-  .modal-tbar { background: linear-gradient(to bottom,#f2f2f2,#e4e4e4); border-bottom: 2px solid var(--sap-blue); padding: 9px 14px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .modal-tbar { background: linear-gradient(to bottom,#f2f2f2,#e4e4e4); border-bottom: 2px solid var(--sap-blue); padding: 9px 14px; display: flex; align-items: flex-start; justify-content: space-between; cursor: move; user-select: none; }
+  .modal.dragging { animation: none; }
   .modal-tbar h2 { font-size: 14px; font-weight: 700; color: var(--sap-blue-dark); }
   .modal-tbar-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .modal-close { background: none; border: 1px solid var(--border-dark); color: var(--muted); width: 24px; height: 24px; border-radius: 3px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all .1s; }
@@ -514,6 +515,20 @@
   .track-prog { font-family:'Courier New',monospace; font-size:12px; font-weight:700; }
   .track-prog-sub { font-size:10px; color:var(--muted); }
   @keyframes trackPendPulse { 0%,100%{ box-shadow:0 0 0 0 rgba(187,0,0,0);} 50%{ box-shadow:0 0 0 3px rgba(187,0,0,.35);} }
+  .obs-box { background:#fafafa; border:1px solid var(--border); border-radius:var(--r); padding:10px; }
+  .obs-box label { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:5px; }
+  .obs-ta { width:100%; min-height:50px; resize:vertical; font-family:var(--font); }
+  .obs-list { margin-top:8px; max-height:140px; overflow-y:auto; }
+  .obs-item { font-size:11px; padding:6px 0; border-top:1px solid var(--border); }
+  .obs-item:first-child { border-top:none; }
+  .obs-item .obs-meta { color:var(--muted); font-size:10px; margin-top:2px; }
+  .fh-item { display:flex; gap:10px; padding:9px 0; border-top:1px solid var(--border); font-size:12px; }
+  .fh-item:first-child { border-top:none; }
+  .fh-ico { font-size:15px; flex-shrink:0; width:22px; text-align:center; }
+  .fh-body { flex:1; }
+  .fh-label { font-weight:700; }
+  .fh-meta { color:var(--muted); font-size:11px; margin-top:2px; }
+  .fh-empty { text-align:center; color:var(--muted); padding:24px; font-size:12px; }
 </style>
 </head>
 <body>
@@ -1341,7 +1356,21 @@
           <tbody id="ff-tbody"></tbody>
         </table>
       </div>
+      <div id="ff-obs" style="margin-top:10px"></div>
       <div class="forn-actions" id="ff-actions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FORMS: HISTÓRICO DO FORNECEDOR (linha do tempo de contatos/e-mails/ações) -->
+<div class="modal-ov" id="forms-hist-ov" onclick="fecharHistoricoFornecedor(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="width:640px">
+    <div class="modal-tbar">
+      <div><h2 id="fh-title">Histórico do Fornecedor</h2><div class="modal-tbar-sub" id="fh-sub">Todos os contatos, e-mails e ações registrados</div></div>
+      <button class="modal-close" onclick="fecharHistoricoFornecedor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="fh-list"></div>
     </div>
   </div>
 </div>
@@ -1426,6 +1455,7 @@
     <div class="modal-body">
       <div id="tk-lock"></div>
       <div id="tk-checks"></div>
+      <div id="tk-obs" style="margin-top:12px"></div>
       <div id="tk-resultado" style="margin-top:12px"></div>
       <div class="forn-actions" id="tk-actions"></div>
     </div>
@@ -1565,6 +1595,45 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ── Modais arrastáveis (todos os "cards" centrais, .modal-ov/.modal-tbar) ──
+// Arrasta pela barra de título; some com o "preso na tela" e permite ver
+// informação que ficou atrás. Posição volta ao centro cada vez que o modal reabre.
+(function(){
+  let dragEl=null, offX=0, offY=0;
+  document.addEventListener('mousedown', e=>{
+    const bar = e.target.closest('.modal-tbar');
+    if(!bar || e.target.closest('.modal-close')) return;
+    const modal = bar.closest('.modal');
+    if(!modal) return;
+    const rect = modal.getBoundingClientRect();
+    modal.style.position = 'fixed';
+    modal.style.margin   = '0';
+    modal.style.left     = rect.left+'px';
+    modal.style.top      = rect.top+'px';
+    modal.classList.add('dragging');
+    dragEl = modal; offX = e.clientX-rect.left; offY = e.clientY-rect.top;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e=>{
+    if(!dragEl) return;
+    const x = Math.max(0, Math.min(e.clientX-offX, window.innerWidth-60));
+    const y = Math.max(0, Math.min(e.clientY-offY, window.innerHeight-40));
+    dragEl.style.left = x+'px';
+    dragEl.style.top  = y+'px';
+  });
+  document.addEventListener('mouseup', ()=>{ if(dragEl){ dragEl.classList.remove('dragging'); dragEl=null; } });
+  // Ao reabrir (classe "open" adicionada ao overlay), volta pro centro
+  new MutationObserver(muts=>{
+    muts.forEach(m=>{
+      const ov = m.target;
+      if(ov.classList && ov.classList.contains('modal-ov') && ov.classList.contains('open')){
+        const modal = ov.querySelector('.modal');
+        if(modal){ modal.style.position=''; modal.style.left=''; modal.style.top=''; modal.style.margin=''; }
+      }
+    });
+  }).observe(document.body, {attributes:true, attributeFilter:['class'], subtree:true});
+})();
+
 const AREAS = ['SUP','MIGO','MIRO','FIN'];
 let nfs=[], currentNF=null, notifs=[];
 let dashSort = {campo:'nome', dir:'az'};
@@ -1982,6 +2051,17 @@ function iniciarApp(user){
     if(document.getElementById('track-stats-ov')?.classList.contains('open')) renderEstatisticasTracking();
   });
 
+  // Observações do Tracking (por NF) e do Forms (por fornecedor) — persistem à parte,
+  // sobrevivem a qualquer "Limpar Arquivos"/"Limpar Dados Locais"
+  db.ref('trackingObservacoes').on('value', snap => {
+    trackingObservacoes = snap.val() || {};
+    if(_tkNfId!=null && document.getElementById('track-ov')?.classList.contains('open')) renderObsTracking(_tkNfId);
+  });
+  db.ref('formsObservacoes').on('value', snap => {
+    formsObservacoes = snap.val() || {};
+    if(_ffEmpresaAtual && document.getElementById('forms-forn-ov')?.classList.contains('open')) renderObsForms(_ffEmpresaAtual);
+  });
+
   // Comunicação — fornecedores e respostas
   db.ref('comunicacaoFornecedores').on('value', snap => {
     const data = snap.val();
@@ -2030,18 +2110,19 @@ function iniciarApp(user){
 
 function aplicarPermissoes(){
   const owner = isOwner();
+  const podeImp = podeImportar(); // Owner OU Admin (funcionarios.admin)
 
   // Import Excel button (NF tab — hidden for all, import is via Dashboard)
   const btnImport = document.getElementById('btn-import-nf');
   if(btnImport) btnImport.style.display = 'none';
 
-  // Drop zone — visible to all, enabled only for owners
+  // Drop zone — visível a todos, habilitada para Owner e Admin
   const dz = document.getElementById('drop-zone');
   if(dz){
-    dz.style.pointerEvents = owner ? '' : 'none';
-    dz.style.opacity       = owner ? '' : '0.5';
-    dz.title               = owner ? '' : 'Apenas o administrador pode importar';
-    dz.style.cursor        = owner ? 'pointer' : 'not-allowed';
+    dz.style.pointerEvents = podeImp ? '' : 'none';
+    dz.style.opacity       = podeImp ? '' : '0.5';
+    dz.title               = podeImp ? '' : 'Apenas administradores podem importar';
+    dz.style.cursor        = podeImp ? 'pointer' : 'not-allowed';
   }
 
   // Limpar Firebase — visível a todos, habilitado só para owners
@@ -2072,6 +2153,15 @@ function aplicarPermissoes(){
 function isOwner(){
   if(!_fbUser) return false;
   return OWNER_EMAILS.some(o => _fbUser.email.toLowerCase() === o.toLowerCase());
+}
+
+// "Admin" = flag do cadastro de usuários (Configurações), distinto de Owner (OWNER_EMAILS).
+// Admin pode IMPORTAR arquivos, mas nenhuma ação de "Limpar" continua exclusiva do Owner.
+function isAdmin(){
+  return !!(currentUser && currentUser.admin);
+}
+function podeImportar(){
+  return isOwner() || isAdmin();
 }
 
 function carregarNFsDoFirebase(){
@@ -2166,6 +2256,80 @@ function registrarHistoricoForms(sol, par, tipo, emOverride, horaOverride, porOv
   };
   formsHistoricoLog.unshift(entry);
   db.ref('formsHistoricoLog/' + entry.id).set(entry);
+}
+
+// Chave segura pra usar como caminho no Realtime Database (sem . # $ [ ] /)
+function _obsKey(s){ return String(s||'').trim().replace(/[.#$\[\]\/]/g,'_') || '_'; }
+
+// ── Observações do Forms (por fornecedor/empresa) — campo livre pra lembrar/registrar
+// status, com data/hora. Persistido à parte (formsObservacoes), sobrevive a "Limpar Arquivos".
+let formsObservacoes = {};
+function salvarObsForms(empresa){
+  const ta = document.getElementById('ff-obs-ta');
+  const texto = (ta?.value||'').trim();
+  if(!texto){ showToast('Digite uma observação antes de salvar.',''); return; }
+  const a = new Date();
+  const entry = {
+    id: 'fo_'+Date.now(), texto,
+    data: a.getFullYear()+'-'+_pad2(a.getMonth()+1)+'-'+_pad2(a.getDate()),
+    hora: _pad2(a.getHours())+':'+_pad2(a.getMinutes()),
+    por: nomeUsuarioAtual()
+  };
+  const key = _obsKey(empresa);
+  formsObservacoes[key] = formsObservacoes[key]||[];
+  formsObservacoes[key].unshift(entry);
+  db.ref('formsObservacoes/'+key+'/'+entry.id).set(entry);
+  ta.value='';
+  renderObsForms(empresa);
+  showToast('Observação salva.','success');
+}
+function renderObsForms(empresa){
+  const el = document.getElementById('ff-obs');
+  if(!el) return;
+  const lista = (formsObservacoes[_obsKey(empresa)]||[]).slice().sort((a,b)=>(b.id||0)>(a.id||0)?1:-1);
+  el.innerHTML = `<div class="obs-box">
+    <label>Observações</label>
+    <textarea class="sap-input obs-ta" id="ff-obs-ta" placeholder="Anote aqui algo para lembrar ou informar o status deste fornecedor..."></textarea>
+    <div style="margin-top:6px"><button class="sap-btn" onclick="salvarObsForms('${empresa.replace(/'/g,"\\'")}')">💾 Salvar Observação</button></div>
+    <div class="obs-list">${lista.length ? lista.map(o=>`<div class="obs-item">${o.texto}<div class="obs-meta">${fdate(o.data)} ${o.hora||''} · ${o.por||'—'}</div></div>`).join('') : '<div class="obs-meta" style="padding-top:6px">Nenhuma observação registrada ainda.</div>'}</div>
+  </div>`;
+}
+
+// ── Observações do Tracking (por NF) — mesmo conceito, chave = número da NF + fornecedor
+// (estável entre reimportações). Persistido à parte (trackingObservacoes).
+let trackingObservacoes = {};
+function _trackObsKey(n){ return _obsKey(n.num) + '__' + _obsKey(n.forn); }
+function salvarObsTracking(id){
+  const n = nfs.find(x=>String(x.id)===String(id)); if(!n) return;
+  const ta = document.getElementById('tk-obs-ta');
+  const texto = (ta?.value||'').trim();
+  if(!texto){ showToast('Digite uma observação antes de salvar.',''); return; }
+  const a = new Date();
+  const entry = {
+    id: 'to_'+Date.now(), texto,
+    data: a.getFullYear()+'-'+_pad2(a.getMonth()+1)+'-'+_pad2(a.getDate()),
+    hora: _pad2(a.getHours())+':'+_pad2(a.getMinutes()),
+    por: nomeUsuarioAtual()
+  };
+  const key = _trackObsKey(n);
+  trackingObservacoes[key] = trackingObservacoes[key]||[];
+  trackingObservacoes[key].unshift(entry);
+  db.ref('trackingObservacoes/'+key+'/'+entry.id).set(entry);
+  ta.value='';
+  renderObsTracking(id);
+  showToast('Observação salva.','success');
+}
+function renderObsTracking(id){
+  const el = document.getElementById('tk-obs');
+  const n = nfs.find(x=>String(x.id)===String(id));
+  if(!el || !n) return;
+  const lista = (trackingObservacoes[_trackObsKey(n)]||[]).slice().sort((a,b)=>(b.id||0)>(a.id||0)?1:-1);
+  el.innerHTML = `<div class="obs-box">
+    <label>Observações</label>
+    <textarea class="sap-input obs-ta" id="tk-obs-ta" placeholder="Anote aqui algo para lembrar ou informar o status desta NF..."></textarea>
+    <div style="margin-top:6px"><button class="sap-btn" onclick="salvarObsTracking(${id})">💾 Salvar Observação</button></div>
+    <div class="obs-list">${lista.length ? lista.map(o=>`<div class="obs-item">${o.texto}<div class="obs-meta">${fdate(o.data)} ${o.hora||''} · ${o.por||'—'}</div></div>`).join('') : '<div class="obs-meta" style="padding-top:6px">Nenhuma observação registrada ainda.</div>'}</div>
+  </div>`;
 }
 
 // "Limpar Arquivos" — remove SÓ as solicitações importadas (pedidos do fornecedor).
@@ -4089,8 +4253,8 @@ function exportarIgnoradasImport(){
 }
 
 function importFile(file){
-  // Allow import in local/preview mode (no Firebase) OR when owner
-  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode importar arquivos.',''); return; }
+  // Allow import in local/preview mode (no Firebase) OR when Owner/Admin
+  if(_fbUser && !podeImportar()){ showToast('Apenas administradores podem importar arquivos.',''); return; }
   const r=new FileReader();
   r.onload=e=>{
     try{
@@ -4367,7 +4531,7 @@ function parseFormsDataHora(raw){
 }
 
 function importFormsFile(file){
-  if(_fbUser && !isOwner()){ showToast('Apenas o administrador pode importar planilhas do Forms.',''); return; }
+  if(_fbUser && !podeImportar()){ showToast('Apenas administradores podem importar planilhas do Forms.',''); return; }
   const r = new FileReader();
   r.onload = e => {
     let wb;
@@ -4699,7 +4863,7 @@ function abrirPainelFornecedor(empresa){
       <td class="mono">${par.pc||'—'}</td>
       <td><span class="badge" style="${cor}">${sit.label}</span>${regHTML}${avisoHTML}</td>
       <td>${problema?'—':(nf?fval(nf.val):'—')}</td>
-      <td>${problema?'—':(nf?fdate(calcVenc(nf.emissao)):'—')}</td>
+      <td>${problema?'—':(nf?(cls==='pago'?fdate(nf.venc):fdate(calcVenc(nf.emissao))):'—')}</td>
       <td style="text-align:center">${problema?'—':(nf?diasHTML(nf.emissao):'—')}</td>
       <td>${etapaCel}</td>
       <td>${prevCel}</td>
@@ -4727,6 +4891,7 @@ function abrirPainelFornecedor(empresa){
   const temProblema = itens.some(i=>i.cls==='invalido'||i.cls==='nao');
   const temPendente = itens.some(i=>i.cls==='pendente');
   const acoes = [];
+  acoes.push(`<button class="sap-btn" onclick="abrirHistoricoFornecedor('${empresa.replace(/'/g,"\\'")}')">📜 Histórico</button>`);
   const eumVerificando = ativo && ativo.por===nomeUsuarioAtual();
   acoes.push(eumVerificando
     ? `<button class="sap-btn" style="color:var(--green);border-color:var(--green)" onclick="acaoToggleVerificando()">⏹ Concluir verificação</button>`
@@ -4739,6 +4904,8 @@ function abrirPainelFornecedor(empresa){
   // o reenvio de qualquer NF (ex.: PC divergente), não só as inválidas/não localizadas.
   if(itens.some(i=>!i.par.concluidoEm)) acoes.push(`<button class="sap-btn" style="color:var(--red);border-color:var(--red)" onclick="acaoSolicitarReenvio()">✉ Solicitar Reenvio (selecionadas)</button>`);
   acoes.push(`<button class="sap-btn" onclick="closePainelFornecedor()">Fechar</button>`);
+
+  renderObsForms(empresa);
   document.getElementById('ff-actions').innerHTML = acoes.join('');
 
   const mo = document.getElementById('forms-forn-ov');
@@ -4812,6 +4979,15 @@ function acaoToggleVerificando(){
     };
     verificacaoLog.unshift(entry); salvarVerificacaoLogFirebase(entry);
     sols.forEach(s=>{ s.verificandoPor=null; s.verificandoInicioTs=null; s.verificandoInicioFmt=null; salvarFormsSolicitacaoFirebase(s); });
+
+    // Se todas as pendências já foram resolvidas (pagamento/reenvio/previsão informados
+    // para TODAS as NFs), o card não tem mais motivo pra aparecer na lista — fecha o painel.
+    if(fornecedorTotalmenteTratado(empresa)){
+      closePainelFornecedor();
+      renderForms();
+      showToast(`Verificação finalizada (${entry.duracaoMin} min). Fornecedor totalmente tratado — card removido da lista.`,'success');
+      return;
+    }
     showToast(`Verificação finalizada (${entry.duracaoMin} min).`,'success');
   } else if(ativo && ativo.por!==me && !isOwner()){
     showToast(`Este fornecedor já está sendo verificado por ${ativo.por}.`,'');
@@ -4828,6 +5004,68 @@ function acaoToggleVerificando(){
 function closePainelFornecedor(e){
   if(e && e.target!==document.getElementById('forms-forn-ov')) return;
   document.getElementById('forms-forn-ov').classList.remove('open');
+}
+
+// Linha do tempo unificada de um fornecedor: quando a solicitação chegou, todo e-mail/ação
+// enviado (formsHistoricoLog), sessões de verificação (verificacaoLog) e observações —
+// pra responder "quando ele foi contatado / quando recebeu o retorno" mesmo depois de
+// "Limpar Arquivos" (esses registros são todos permanentes, exceto a solicitação em si).
+const FH_TIPO_ICO = {pago:'✉️', previsao:'💾', reenvio:'✉️', aviso:'📨'};
+const FH_TIPO_LBL = {pago:'Pagamento informado', previsao:'Previsão de pagamento enviada', reenvio:'Reenvio solicitado ao fornecedor', aviso:'Aviso de andamento enviado'};
+function abrirHistoricoFornecedor(empresa){
+  if(!empresa) return;
+  const eventos = [];
+
+  formsSolicitacoes.filter(s=>(s.empresa||'')===empresa).forEach(s=>{
+    eventos.push({
+      ts: new Date((s.dataSolicitacao||'1970-01-01')+'T'+(s.horaSolicitacao||'00:00')+':00').getTime()||0,
+      icon:'📥', label:'Solicitação recebida do fornecedor',
+      detail: s.solicitante?`Solicitante: ${s.solicitante}`:'',
+      meta: `${fdate(s.dataSolicitacao)} ${s.horaSolicitacao||''}`.trim()
+    });
+  });
+  formsHistoricoLog.filter(h=>h.empresa===empresa).forEach(h=>{
+    eventos.push({
+      ts: h.ts||0, icon: FH_TIPO_ICO[h.tipo]||'•', label: FH_TIPO_LBL[h.tipo]||'Ação registrada',
+      detail: `NF ${h.nf||'—'}${h.pc?' · PC '+h.pc:''}`,
+      meta: `${fdate(h.concluidoEm)} ${h.concluidoHora||''} · ${h.concluidoPor||'—'}`.trim()
+    });
+  });
+  verificacaoLog.filter(v=>v.empresa===empresa).forEach(v=>{
+    eventos.push({
+      ts: v.fimTs||v.ts||0, icon:'🔍', label:'Verificação concluída',
+      detail: `Duração: ${v.duracaoMin!=null?v.duracaoMin+' min':'—'}`,
+      meta: `${v.fimFmt||''} · ${v.por||'—'}`
+    });
+  });
+  (formsObservacoes[_obsKey(empresa)]||[]).forEach(o=>{
+    eventos.push({
+      ts: parseInt(String(o.id||'').split('_')[1])||0, icon:'📝', label:'Observação registrada',
+      detail: o.texto,
+      meta: `${fdate(o.data)} ${o.hora||''} · ${o.por||'—'}`.trim()
+    });
+  });
+
+  eventos.sort((a,b)=>b.ts-a.ts);
+
+  document.getElementById('fh-title').textContent = 'Histórico — '+empresa;
+  document.getElementById('fh-list').innerHTML = eventos.length ? eventos.map(e=>`
+    <div class="fh-item">
+      <div class="fh-ico">${e.icon}</div>
+      <div class="fh-body">
+        <div class="fh-label">${e.label}</div>
+        ${e.detail?`<div>${e.detail}</div>`:''}
+        <div class="fh-meta">${e.meta}</div>
+      </div>
+    </div>`).join('') : `<div class="fh-empty">Nenhum registro encontrado para este fornecedor.</div>`;
+
+  const mo = document.getElementById('forms-hist-ov');
+  document.body.appendChild(mo);
+  mo.classList.add('open');
+}
+function fecharHistoricoFornecedor(e){
+  if(e && e.target!==document.getElementById('forms-hist-ov')) return;
+  document.getElementById('forms-hist-ov').classList.remove('open');
 }
 
 function _contatoFornecedor(empresa){
@@ -5318,6 +5556,8 @@ function openTrackPanel(id){
       </div>
     </div>`;
   }).join('');
+
+  renderObsTracking(id);
 
   // Resultado
   const resEl = document.getElementById('tk-resultado');
